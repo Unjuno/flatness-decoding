@@ -34,6 +34,28 @@ def repetition_rate(texts: list[str], n: int = 4) -> float:
     return repeated / len(all_ngrams)
 
 
+def continuation_from_text(text: str, prompt: str) -> str:
+    """Remove a prompt prefix from a decoded full text when possible."""
+    if prompt and text.startswith(prompt):
+        return text[len(prompt) :].lstrip()
+    return text
+
+
+def analysis_text_from_row(row: dict[str, Any]) -> str:
+    """Return the text span used for output-quality metrics.
+
+    Generation scripts now write `continuation_text`. For older outputs, fall
+    back to removing the prompt prefix from `text`. This avoids measuring prompt
+    words in distinct/repetition/PPL style metrics.
+    """
+    continuation = row.get("continuation_text")
+    if continuation is not None:
+        return str(continuation)
+    text = str(row.get("text", ""))
+    prompt = str(row.get("prompt", ""))
+    return continuation_from_text(text, prompt)
+
+
 def mean_or_none(values: list[float]) -> float | None:
     if not values:
         return None
@@ -60,6 +82,7 @@ def first_metadata(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "baseline_temperature",
         "top_p",
         "top_k",
+        "num_beams",
         "seed",
     ]
     return {key: first.get(key) for key in keys if key in first}
@@ -67,7 +90,7 @@ def first_metadata(rows: list[dict[str, Any]]) -> dict[str, Any]:
 
 def summarize_generation_file(path: str | Path) -> dict[str, float | int | str | None]:
     rows = read_jsonl(path)
-    texts = [str(row.get("text", "")) for row in rows]
+    texts = [analysis_text_from_row(row) for row in rows]
     output_tokens = [float(row["num_output_tokens"]) for row in rows if row.get("num_output_tokens") is not None]
     runtimes = [float(row["runtime_seconds"]) for row in rows if row.get("runtime_seconds") is not None]
     tps = [float(row["tokens_per_second"]) for row in rows if row.get("tokens_per_second") is not None]
@@ -76,7 +99,7 @@ def summarize_generation_file(path: str | Path) -> dict[str, float | int | str |
         "file": str(path),
         **first_metadata(rows),
         "num_outputs": len(texts),
-        "mean_words": mean_text_length(texts),
+        "mean_continuation_words": mean_text_length(texts),
         "mean_output_tokens": mean_or_none(output_tokens),
         "mean_runtime_seconds": mean_or_none(runtimes),
         "mean_tokens_per_second": mean_or_none(tps),
@@ -102,8 +125,8 @@ def summarize_token_log_file(path: str | Path) -> dict[str, float | int | str | 
 
     chosen = [float(row.get("chosen_flatness", 0.0)) for row in rows]
     mean_candidate = [float(row.get("mean_candidate_flatness", 0.0)) for row in rows]
-    min_candidate = [float(row.get("min_candidate_flatness", 0.0)) for row in rows]
-    max_candidate = [float(row.get("max_candidate_flatness", 0.0)) for row in rows]
+    min_candidate = [float(row.get("mean_min_candidate_flatness", 0.0)) for row in rows]
+    max_candidate = [float(row.get("mean_max_candidate_flatness", 0.0)) for row in rows]
     gains = [float(row.get("selection_gain", 0.0)) for row in rows]
 
     return {
