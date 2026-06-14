@@ -13,10 +13,11 @@ prompts:
   limit: 100
 
 baselines:
-  methods: [greedy, sampling, temperature, top_p, top_k]
+  methods: [greedy, beam, sampling, temperature, top_p, top_k]
   temperature: 1.2
   top_p: 0.9
   top_k: 50
+  num_beams: 4
 
 n_trial_methods:
   methods: [random, minflat, maxflat]
