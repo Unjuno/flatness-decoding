@@ -14,6 +14,10 @@ def sample_candidates_from_logits(
 
     This proposal distribution is only used to produce candidates. The final
     selection rule is handled by the decoder.
+
+    Sampling is intentionally performed on CPU. This avoids backend-specific
+    multinomial issues on Apple MPS while keeping model forward passes on the
+    selected accelerator.
     """
     if logits.dim() != 1:
         raise ValueError(f"Expected 1D logits, got shape {tuple(logits.shape)}")
@@ -22,7 +26,7 @@ def sample_candidates_from_logits(
     if temperature <= 0:
         raise ValueError("temperature must be positive")
 
-    scaled = logits.float().clone() / temperature
+    scaled = logits.detach().float().cpu().clone() / temperature
 
     if banned_token_ids:
         for token_id in banned_token_ids:
@@ -30,4 +34,6 @@ def sample_candidates_from_logits(
                 scaled[token_id] = -torch.inf
 
     probs = torch.softmax(scaled, dim=-1)
+    if not torch.isfinite(probs).all() or float(probs.sum().item()) <= 0.0:
+        raise ValueError("Invalid proposal probabilities; check logits and banned tokens.")
     return torch.multinomial(probs, num_samples=n, replacement=replacement)
