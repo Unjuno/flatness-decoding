@@ -13,4 +13,6 @@ src = ["src", "scripts"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
-ignore = []
+# Baseline ignores for the current research scripts. Tighten these gradually
+# after the experiment/evaluation path is stable.
+ignore = ["E501", "F401", "I001", "UP035"]
