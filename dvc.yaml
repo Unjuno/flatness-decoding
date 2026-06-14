@@ -1,0 +1,32 @@
+stages:
+  comparison_smoke:
+    cmd: PYTHONPATH=src python scripts/run_pipeline.py --config configs/comparison_smoke.yaml
+    deps:
+      - src/flatness_decoding
+      - scripts/run_pipeline.py
+      - scripts/run_experiment_set.py
+      - scripts/run_evaluate.py
+      - scripts/plot_results.py
+      - configs/comparison_smoke.yaml
+      - prompts/toy_prompts.jsonl
+    outs:
+      - outputs/generations/comparison_smoke
+      - outputs/token_logs/comparison_smoke
+      - results/summary/comparison_smoke_metrics.csv
+      - results/figures/comparison_smoke
+
+  comparison_main:
+    cmd: PYTHONPATH=src python scripts/run_pipeline.py --config configs/comparison_main_template.yaml
+    deps:
+      - src/flatness_decoding
+      - scripts/run_pipeline.py
+      - scripts/run_experiment_set.py
+      - scripts/run_evaluate.py
+      - scripts/plot_results.py
+      - configs/comparison_main_template.yaml
+      - prompts/main_prompts.jsonl
+    outs:
+      - outputs/generations/comparison_main
+      - outputs/token_logs/comparison_main
+      - results/summary/comparison_main_metrics.csv
+      - results/figures/comparison_main
