@@ -1,0 +1,12 @@
+# Models are downloaded locally by scripts/download_models.py.
+# Model weights are not tracked by Git. Default cache: models/hf/
+
+models:
+  - distilgpt2
+  - gpt2
+
+optional_models:
+  # Uncomment or pass via --models when compute/storage allows.
+  # - gpt2-medium
+  # - microsoft/DialoGPT-small
+  # - microsoft/DialoGPT-medium
