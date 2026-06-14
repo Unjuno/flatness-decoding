@@ -4,6 +4,27 @@ Experimental evaluation of **next-state logit flatness** as a decoding criterion
 
 This repository is a private research workspace for evaluating a decoding controller called **Flatness-N Decoding**. The goal is not to claim universal improvement, but to test how selecting tokens by next-state logit flatness changes generation trajectories, repetition, diversity, quality proxies, and compute cost.
 
+## Start here
+
+The current operational plan is fixed in:
+
+```text
+ROADMAP.md
+```
+
+Use it as the main checklist for local setup, smoke tests, main experiments, evaluation, and manuscript filling.
+
+Canonical thesis files:
+
+```text
+paper/manuscript.md
+paper/thesis_blueprint_final.md
+paper/quality_evaluation_plan.md
+paper/flatness_validity_argument.md
+notes/evaluation_matrix.md
+notes/parallel_execution.md
+```
+
 ## Core idea
 
 At generation step `t`, given the current context `x_t`:
@@ -26,9 +47,9 @@ If only probabilities are available, `Std(log p)` can be used because `log p_i =
 
 ## Main research questions
 
-1. Does Flatness-N reduce next-state logit standard deviation compared with Random-N and ordinary baselines?
-2. How does Flatness-N affect repetition, diversity, quality proxies, and runtime?
-3. How do these metrics change as `N` increases?
+1. Does Flatness-N reduce next-state logit standard deviation compared with Random-N under the same candidate budget?
+2. Does the flatness change align with quality-related metrics such as diversity, repetition, PPL/NLL, qualitative coherence, and runtime?
+3. How do internal and output metrics change as `N` increases?
 
 ## Comparison set
 
@@ -37,6 +58,7 @@ The repository includes a thesis-level comparison set.
 ### Standard baselines
 
 - `greedy`
+- `beam`
 - `sampling`
 - `temperature`
 - `top_p`
@@ -50,7 +72,7 @@ The repository includes a thesis-level comparison set.
 
 `N` sweep is applied only to N-trial methods. Standard baselines do not have `N`.
 
-## Hardware support
+## Hardware support and parallel execution
 
 The code is designed to run on:
 
@@ -58,49 +80,80 @@ The code is designed to run on:
 - Apple Silicon MPS
 - CPU fallback
 
-Use `--device auto` to select `cuda > mps > cpu`.
+Use `--device auto` to select `cuda > mps > cpu` for model execution.
+
+For experiments, use the hardware-aware parallel planner:
+
+```bash
+make plan-parallel
+```
+
+Parallel targets use automatic worker/shard selection:
+
+```bash
+make comparison-smoke-parallel
+make comparison-distilgpt2-main-parallel
+make comparison-main-parallel
+```
+
+See:
+
+```text
+notes/parallel_execution.md
+```
+
+## Model cache policy
+
+Model weights are downloaded locally and are not committed to Git.
+
+Default cache:
+
+```text
+models/hf/
+```
+
+Download initial models:
+
+```bash
+make download-models
+```
+
+See:
+
+```text
+models/README.md
+```
 
 ## Quick start
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-pip install -r requirements-common.txt
-PYTHONPATH=src python scripts/check_device.py
-PYTHONPATH=src python scripts/smoke_test.py
-```
-
-Equivalent Makefile commands:
-
-```bash
 make install
+make download-models
 make check
+make test
 make smoke
+make plan-parallel
 ```
 
-## Run the full comparison smoke pipeline
+## First full smoke comparison
 
-This is the first full comparison command to run after cloning locally.
+Run:
 
 ```bash
-PYTHONPATH=src python scripts/run_pipeline.py \
-  --config configs/comparison_smoke.yaml
+make comparison-smoke-parallel
 ```
 
-or:
+Then optional extended checks:
 
 ```bash
-make comparison-smoke
+make extended-smoke
+make ppl-smoke
+make trends-smoke
+make metric-suite-smoke
+make export-smoke-table
 ```
-
-This runs:
-
-1. `scripts/run_experiment_set.py`
-2. `scripts/run_evaluate.py`
-3. `scripts/build_results_table.py`
-4. `scripts/analyze_results.py`
-5. `scripts/analyze_token_logs.py`
-6. `scripts/plot_results.py`
 
 Outputs:
 
@@ -113,6 +166,7 @@ results/summary/comparison_smoke_analysis.md
 results/summary/comparison_smoke_token_trace.csv
 results/figures/comparison_smoke/
 results/figures/comparison_smoke/token_analysis/
+paper/tables/comparison_smoke_table.md
 ```
 
 ## Build a main prompt subset
@@ -131,46 +185,19 @@ prompts/main_prompts.jsonl
 
 The prompt file is the experimental set. Every method must use the same rows in the same order.
 
-## Run the main comparison template
+## Recommended experiment order
 
-After `prompts/main_prompts.jsonl` exists:
-
-```bash
-PYTHONPATH=src python scripts/run_pipeline.py \
-  --config configs/comparison_main_template.yaml
-```
-
-or:
+Follow `ROADMAP.md`. The short version is:
 
 ```bash
-make comparison-main
+make comparison-smoke-parallel
+make build-prompts
+make comparison-distilgpt2-main-parallel
+# inspect outputs before running the full gpt2 experiment
+make comparison-main-parallel
 ```
 
-## Analysis scripts
-
-The pipeline now produces automatic analysis files. You can also run them manually:
-
-```bash
-make analyze-smoke
-make token-analyze-smoke
-```
-
-The analysis focuses on:
-
-- Flatness-N vs Random-N at the same N
-- N dependence of chosen flatness and selection gain
-- correlation between flatness and diversity/repetition/runtime
-- token-level flatness traces over generation steps
-
-## Dataset and metric references
-
-See:
-
-```text
-notes/datasets_and_metrics.md
-```
-
-This note records how E2E NLG, WritingPrompts/narrative generation, WikiText prompts, MAUVE, and standard NLG metrics may be used or referenced.
+Do not run the full main experiment until smoke and lightweight main outputs look sane.
 
 ## Run a single generation
 
@@ -190,27 +217,68 @@ PYTHONPATH=src python scripts/run_generate.py \
 - Raw datasets, full generations, token-level logs, model caches, and checkpoints should be tracked by DVC or kept outside Git.
 - Do not commit full logits or full probability vectors.
 
-## Current status
+## Paper workflow
 
-The repository now contains:
-
-- research plan and related-work notes
-- dataset/metric reference plan
-- standard baseline implementations
-- Flatness-N, Random-N, and MaxFlat-N implementations
-- comparison experiment-set configs
-- prompt subset builder
-- end-to-end pipeline script
-- compact result-table builder
-- automatic analysis scripts
-- basic evaluation and plotting scripts
-- minimal unit tests
-- thesis outline
-
-The next local step is to run `configs/comparison_smoke.yaml` and inspect whether:
+Working manuscript:
 
 ```text
-mean_flatness(minflat) < mean_flatness(random)
+paper/manuscript.md
 ```
 
-and how the output metrics change as `N` increases.
+Check unresolved markers:
+
+```bash
+make paper-check
+```
+
+Before final submission:
+
+```bash
+make paper-check-final
+```
+
+Unresolved or result-dependent statements are intentionally marked with:
+
+```text
+[TODO]
+[RESULT TBD]
+[VERIFY]
+[CITATION NEEDED]
+[FIGURE TBD]
+[TABLE TBD]
+[ALGORITHM TBD]
+```
+
+## Current status
+
+The repository contains:
+
+- Flatness-N, Random-N, and MaxFlat-N implementations
+- standard baselines including beam search
+- model cache/downloader support
+- hardware-aware parallel execution
+- comparison experiment configs
+- prompt subset builder
+- evaluation, trend fitting, and plotting scripts
+- paper manuscript and thesis planning files
+- roadmap and local verification gates
+
+The next local step is:
+
+```bash
+make install
+make download-models
+make check
+make test
+make smoke
+make plan-parallel
+make comparison-smoke-parallel
+```
+
+Then inspect whether:
+
+```text
+mean_chosen_flatness(minflat) < mean_chosen_flatness(random) < mean_chosen_flatness(maxflat)
+```
+
+and how output metrics change as `N` increases.
