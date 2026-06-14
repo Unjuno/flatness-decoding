@@ -1,5 +1,6 @@
 experiment_name: comparison_main
 model_name: gpt2
+model_cache_dir: models/hf
 device: auto
 dtype: auto
 seeds: [0, 1, 2]
