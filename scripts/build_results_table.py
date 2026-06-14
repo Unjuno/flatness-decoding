@@ -36,7 +36,7 @@ def main() -> None:
     gen_cols = [
         *key,
         "num_outputs",
-        "mean_words",
+        "mean_continuation_words",
         "mean_output_tokens",
         "mean_runtime_seconds",
         "mean_tokens_per_second",
