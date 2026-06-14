@@ -25,3 +25,8 @@ def test_analysis_text_prefers_continuation_text():
 def test_analysis_text_strips_prompt_prefix_for_legacy_rows():
     row = {"prompt": "Hello", "text": "Hello world"}
     assert analysis_text_from_row(row) == "world"
+
+
+def test_analysis_text_strips_prompt_prefix_with_leading_space():
+    row = {"prompt": "Hello", "text": "  Hello world"}
+    assert analysis_text_from_row(row) == "world"
