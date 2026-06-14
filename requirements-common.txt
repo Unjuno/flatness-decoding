@@ -1,0 +1,13 @@
+torch
+transformers
+accelerate
+datasets
+evaluate
+numpy
+pandas
+tqdm
+pyyaml
+rich
+matplotlib
+scipy
+sentencepiece
