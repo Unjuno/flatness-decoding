@@ -1,4 +1,4 @@
-.PHONY: install install-eval download-models check smoke plan-parallel clean-smoke clean-distilgpt2-main clean-main comparison-smoke comparison-smoke-parallel build-prompts comparison-main comparison-main-parallel comparison-distilgpt2-main comparison-distilgpt2-main-parallel eval-smoke table-smoke extended-smoke ppl-smoke trends-smoke metric-suite-smoke analyze-smoke token-analyze-smoke plot-smoke paper-check paper-check-final export-smoke-table test dvc-init-local
+.PHONY: install install-eval download-models check smoke plan-parallel clean-tiny clean-smoke clean-distilgpt2-main clean-main comparison-tiny comparison-tiny-parallel validate-tiny comparison-smoke comparison-smoke-parallel validate-smoke build-prompts comparison-main comparison-main-parallel validate-main comparison-distilgpt2-main comparison-distilgpt2-main-parallel validate-distilgpt2-main eval-smoke table-smoke extended-smoke ppl-smoke trends-smoke metric-suite-smoke merge-smoke manifest-smoke analyze-smoke token-analyze-smoke plot-smoke paper-check paper-check-final export-smoke-table test dvc-init-local
 
 PYTHONPATH := src
 
@@ -20,6 +20,9 @@ smoke:
 plan-parallel:
 	PYTHONPATH=$(PYTHONPATH) python scripts/plan_parallelism.py
 
+clean-tiny:
+	PYTHONPATH=$(PYTHONPATH) python scripts/clean_experiment_outputs.py --experiment comparison_tiny --yes
+
 clean-smoke:
 	PYTHONPATH=$(PYTHONPATH) python scripts/clean_experiment_outputs.py --experiment comparison_smoke --yes
 
@@ -29,12 +32,38 @@ clean-distilgpt2-main:
 clean-main:
 	PYTHONPATH=$(PYTHONPATH) python scripts/clean_experiment_outputs.py --experiment comparison_main --yes
 
+comparison-tiny:
+	PYTHONPATH=$(PYTHONPATH) python scripts/run_pipeline.py --config configs/comparison_tiny.yaml
+
+comparison-tiny-parallel:
+	PYTHONPATH=$(PYTHONPATH) python scripts/run_experiment_parallel.py --config configs/comparison_tiny.yaml --num-shards auto --workers auto
+	PYTHONPATH=$(PYTHONPATH) python scripts/run_evaluate.py \
+		--input-dir outputs/generations/comparison_tiny \
+		--token-log-dir outputs/token_logs/comparison_tiny \
+		--output results/summary/comparison_tiny_metrics.csv
+	PYTHONPATH=$(PYTHONPATH) python scripts/build_results_table.py \
+		--metrics results/summary/comparison_tiny_metrics.csv \
+		--output results/summary/comparison_tiny_table.csv
+
+validate-tiny:
+	PYTHONPATH=$(PYTHONPATH) python scripts/validate_generation_outputs.py \
+		--input-dir outputs/generations/comparison_tiny \
+		--token-log-dir outputs/token_logs/comparison_tiny \
+		--require-methods greedy beam sampling top_p random minflat maxflat \
+		--fail
+
 comparison-smoke:
 	PYTHONPATH=$(PYTHONPATH) python scripts/run_pipeline.py --config configs/comparison_smoke.yaml
 
 comparison-smoke-parallel:
 	PYTHONPATH=$(PYTHONPATH) python scripts/run_experiment_parallel.py --config configs/comparison_smoke.yaml --num-shards auto --workers auto
-	$(MAKE) eval-smoke table-smoke analyze-smoke token-analyze-smoke plot-smoke
+	$(MAKE) validate-smoke eval-smoke table-smoke analyze-smoke token-analyze-smoke plot-smoke
+
+validate-smoke:
+	PYTHONPATH=$(PYTHONPATH) python scripts/validate_generation_outputs.py \
+		--input-dir outputs/generations/comparison_smoke \
+		--token-log-dir outputs/token_logs/comparison_smoke \
+		--fail
 
 build-prompts:
 	PYTHONPATH=$(PYTHONPATH) python scripts/build_prompt_subset.py \
@@ -53,6 +82,7 @@ comparison-main:
 
 comparison-main-parallel:
 	PYTHONPATH=$(PYTHONPATH) python scripts/run_experiment_parallel.py --config configs/comparison_main_template.yaml --num-shards auto --workers auto
+	$(MAKE) validate-main
 	PYTHONPATH=$(PYTHONPATH) python scripts/run_evaluate.py \
 		--input-dir outputs/generations/comparison_main \
 		--token-log-dir outputs/token_logs/comparison_main \
@@ -67,11 +97,18 @@ comparison-main-parallel:
 		--input results/summary/comparison_main_metrics.csv \
 		--output-dir results/figures/comparison_main
 
+validate-main:
+	PYTHONPATH=$(PYTHONPATH) python scripts/validate_generation_outputs.py \
+		--input-dir outputs/generations/comparison_main \
+		--token-log-dir outputs/token_logs/comparison_main \
+		--fail
+
 comparison-distilgpt2-main:
 	PYTHONPATH=$(PYTHONPATH) python scripts/run_pipeline.py --config configs/comparison_distilgpt2_main.yaml
 
 comparison-distilgpt2-main-parallel:
 	PYTHONPATH=$(PYTHONPATH) python scripts/run_experiment_parallel.py --config configs/comparison_distilgpt2_main.yaml --num-shards auto --workers auto
+	$(MAKE) validate-distilgpt2-main
 	PYTHONPATH=$(PYTHONPATH) python scripts/run_evaluate.py \
 		--input-dir outputs/generations/comparison_distilgpt2_main \
 		--token-log-dir outputs/token_logs/comparison_distilgpt2_main \
@@ -85,6 +122,12 @@ comparison-distilgpt2-main-parallel:
 	PYTHONPATH=$(PYTHONPATH) python scripts/plot_results.py \
 		--input results/summary/comparison_distilgpt2_main_metrics.csv \
 		--output-dir results/figures/comparison_distilgpt2_main
+
+validate-distilgpt2-main:
+	PYTHONPATH=$(PYTHONPATH) python scripts/validate_generation_outputs.py \
+		--input-dir outputs/generations/comparison_distilgpt2_main \
+		--token-log-dir outputs/token_logs/comparison_distilgpt2_main \
+		--fail
 
 eval-smoke:
 	PYTHONPATH=$(PYTHONPATH) python scripts/run_evaluate.py \
@@ -118,6 +161,17 @@ metric-suite-smoke:
 	PYTHONPATH=$(PYTHONPATH) python scripts/plot_metric_suite.py \
 		--tables results/summary/comparison_smoke_table.csv results/summary/comparison_smoke_extended_metrics.csv results/summary/comparison_smoke_ppl.csv \
 		--output-dir results/figures/comparison_smoke/metric_suite
+
+merge-smoke:
+	PYTHONPATH=$(PYTHONPATH) python scripts/merge_metric_tables.py \
+		--base results/summary/comparison_smoke_table.csv \
+		--extras results/summary/comparison_smoke_extended_metrics.csv results/summary/comparison_smoke_ppl.csv \
+		--output results/summary/comparison_smoke_merged_table.csv
+
+manifest-smoke:
+	PYTHONPATH=$(PYTHONPATH) python scripts/write_run_manifest.py \
+		--config configs/comparison_smoke.yaml \
+		--output results/summary/comparison_smoke_manifest.json
 
 analyze-smoke:
 	PYTHONPATH=$(PYTHONPATH) python scripts/analyze_results.py \
