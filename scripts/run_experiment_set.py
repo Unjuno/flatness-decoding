@@ -174,6 +174,7 @@ def main() -> None:
         model_name=cfg["model_name"],
         device_name=cfg.get("device", "auto"),
         dtype_name=cfg.get("dtype", "auto"),
+        cache_dir=cfg.get("model_cache_dir", "models/hf"),
     )
 
     run_baseline_grid(cfg, model, tokenizer, device, prompts)
