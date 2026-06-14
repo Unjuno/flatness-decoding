@@ -73,6 +73,11 @@ def test_full_text_for_ppl_prefers_full_decoded_text():
     assert full_text_for_ppl(row) == "Hello world"
 
 
-def test_full_text_for_ppl_falls_back_to_prompt_plus_continuation():
+def test_full_text_for_ppl_falls_back_to_prompt_plus_continuation_with_space():
     row = {"prompt": "Hello", "continuation_text": "world"}
-    assert full_text_for_ppl(row) == "Helloworld"
+    assert full_text_for_ppl(row) == "Hello world"
+
+
+def test_full_text_for_ppl_preserves_continuation_leading_space():
+    row = {"prompt": "Hello", "continuation_text": " world"}
+    assert full_text_for_ppl(row) == "Hello world"
