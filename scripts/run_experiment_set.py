@@ -10,6 +10,7 @@ from tqdm import tqdm
 from flatness_decoding.baselines import generate_baseline
 from flatness_decoding.decoding import generate_flatness_controlled
 from flatness_decoding.io_utils import read_jsonl, write_jsonl
+from flatness_decoding.metrics import continuation_from_text
 from flatness_decoding.model_io import load_causal_lm
 
 
@@ -86,6 +87,7 @@ def run_baseline_grid(
                     seed=actual_seed,
                 )
                 elapsed = time.perf_counter() - started
+                continuation_text = continuation_from_text(result.text, prompt)
                 rows.append(
                     {
                         "experiment_name": exp_name,
@@ -106,6 +108,7 @@ def run_baseline_grid(
                         "actual_seed": actual_seed,
                         "prompt": prompt,
                         "text": result.text,
+                        "continuation_text": continuation_text,
                         "num_input_tokens": result.num_input_tokens,
                         "num_output_tokens": result.num_output_tokens,
                         "runtime_seconds": elapsed,
@@ -166,6 +169,7 @@ def run_n_trial_grid(
                     )
                     elapsed = time.perf_counter() - started
                     num_output_tokens = len(records)
+                    continuation_text = continuation_from_text(text, prompt)
                     rows.append(
                         {
                             "experiment_name": exp_name,
@@ -186,6 +190,7 @@ def run_n_trial_grid(
                             "actual_seed": actual_seed,
                             "prompt": prompt,
                             "text": text,
+                            "continuation_text": continuation_text,
                             "num_input_tokens": None,
                             "num_output_tokens": num_output_tokens,
                             "runtime_seconds": elapsed,
