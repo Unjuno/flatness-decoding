@@ -32,6 +32,10 @@ def main() -> None:
     generations_dir = cfg["output"]["generations_dir"]
     token_log_dir = cfg["output"]["token_log_dir"]
     summary_output = cfg["output"].get("summary_csv", "results/summary/metrics.csv")
+    table_output = cfg["output"].get(
+        "table_csv",
+        str(Path(summary_output).with_name(Path(summary_output).stem.replace("metrics", "table") + ".csv")),
+    )
     figures_dir = cfg["output"].get("figures_dir", "results/figures")
 
     if not args.skip_generate:
@@ -47,6 +51,17 @@ def main() -> None:
             token_log_dir,
             "--output",
             summary_output,
+        ]
+    )
+
+    run(
+        [
+            sys.executable,
+            "scripts/build_results_table.py",
+            "--metrics",
+            summary_output,
+            "--output",
+            table_output,
         ]
     )
 
