@@ -1,0 +1,29 @@
+experiment_name: comparison_smoke
+model_name: distilgpt2
+device: auto
+dtype: auto
+seeds: [0]
+
+generation:
+  max_new_tokens: 60
+
+prompts:
+  path: prompts/toy_prompts.jsonl
+  limit: 5
+
+baselines:
+  methods: [greedy, sampling, temperature, top_p, top_k]
+  temperature: 1.2
+  top_p: 0.9
+  top_k: 50
+
+n_trial_methods:
+  methods: [random, minflat, maxflat]
+  n_values: [1, 4, 8]
+  proposal_temperature: 1.0
+
+output:
+  generations_dir: outputs/generations/comparison_smoke
+  token_log_dir: outputs/token_logs/comparison_smoke
+  summary_csv: results/summary/comparison_smoke_metrics.csv
+  figures_dir: results/figures/comparison_smoke
