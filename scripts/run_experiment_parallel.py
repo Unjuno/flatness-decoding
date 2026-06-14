@@ -7,6 +7,9 @@ import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
+import yaml
+
+from flatness_decoding.io_utils import read_jsonl
 from flatness_decoding.parallelism import detect_parallel_plan
 
 
@@ -27,6 +30,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--python", default=sys.executable)
     parser.add_argument("--dry-run", action="store_true", help="Print resolved plan without running shards.")
     return parser.parse_args()
+
+
+def prompt_count_from_config(config_path: str | Path) -> int:
+    with Path(config_path).open("r", encoding="utf-8") as f:
+        cfg = yaml.safe_load(f)
+    prompts = read_jsonl(cfg["prompts"]["path"])
+    limit = cfg.get("prompts", {}).get("limit")
+    if limit is not None:
+        prompts = prompts[: int(limit)]
+    return len(prompts)
 
 
 def run_shard(
@@ -65,16 +78,23 @@ def main() -> None:
         requested_num_shards=args.num_shards,
         requested_workers=args.workers,
     )
+    prompt_count = prompt_count_from_config(args.config)
     num_shards = plan.recommended_num_shards
-    workers = plan.recommended_workers
+    if args.num_shards == "auto" and prompt_count > 0:
+        num_shards = min(num_shards, prompt_count)
+    workers = min(plan.recommended_workers, num_shards) if num_shards > 0 else 1
     devices = args.devices if args.devices is not None else plan.recommended_devices
 
     print("Resolved parallel plan")
     print(f"backend: {plan.backend}")
+    print(f"prompt_count: {prompt_count}")
     print(f"workers: {workers}")
     print(f"num_shards: {num_shards}")
     print(f"devices: {devices}")
     print(f"caution: {plan.caution}")
+
+    if prompt_count == 0:
+        raise SystemExit("no prompts found for this config")
 
     if args.dry_run:
         return
