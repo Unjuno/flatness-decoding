@@ -29,19 +29,19 @@ def conditional_continuation_nll(
     model,
     tokenizer,
     prompt: str,
-    continuation: str,
+    full_text: str,
     device: torch.device,
     max_length: int,
 ) -> tuple[float, int]:
-    """Score continuation tokens conditioned on the prompt.
+    """Score generated continuation tokens conditioned on the prompt.
 
-    Prompt tokens provide context but are masked out of the loss. This avoids both
-    prompt contamination and context-free continuation scoring.
+    Prompt tokens provide context but are masked out of the loss. Use full_text
+    rather than normalized continuation text so spacing/tokenization stays faithful
+    to the decoded sequence.
     """
-    if continuation == "":
+    if full_text == "":
         return 0.0, 0
 
-    full_text = prompt + continuation if prompt else continuation
     prompt_ids = tokenizer(prompt, return_tensors="pt", add_special_tokens=False)["input_ids"]
     encoded = tokenizer(
         full_text,
@@ -70,6 +70,15 @@ def conditional_continuation_nll(
     return float(outputs.loss.detach().cpu().item()) * scored_tokens, scored_tokens
 
 
+def full_text_for_ppl(row: dict) -> str:
+    text = str(row.get("text", ""))
+    if text:
+        return text
+    prompt = str(row.get("prompt", ""))
+    continuation = analysis_text_from_row(row)
+    return prompt + continuation if prompt else continuation
+
+
 def main() -> None:
     args = parse_args()
     model, tokenizer, device = load_causal_lm(
@@ -87,12 +96,12 @@ def main() -> None:
         first = generations[0] if generations else {}
         for row in tqdm(generations, desc=f"PPL {path.name}"):
             prompt = str(row.get("prompt", ""))
-            continuation = analysis_text_from_row(row)
+            full_text = full_text_for_ppl(row)
             nll, count = conditional_continuation_nll(
                 model=model,
                 tokenizer=tokenizer,
                 prompt=prompt,
-                continuation=continuation,
+                full_text=full_text,
                 device=device,
                 max_length=args.max_length,
             )
