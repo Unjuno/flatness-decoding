@@ -1,4 +1,4 @@
-.PHONY: install install-eval download-models check smoke plan-parallel estimate-tiny estimate-smoke estimate-distilgpt2-main estimate-main clean-tiny clean-smoke clean-distilgpt2-main clean-main comparison-tiny comparison-tiny-parallel validate-tiny comparison-smoke comparison-smoke-parallel validate-smoke build-prompts comparison-main comparison-main-parallel validate-main comparison-distilgpt2-main comparison-distilgpt2-main-parallel validate-distilgpt2-main eval-smoke table-smoke extended-smoke ppl-smoke trends-smoke metric-suite-smoke merge-smoke manifest-smoke analyze-smoke token-analyze-smoke plot-smoke paper-check paper-check-final export-smoke-table test dvc-init-local
+.PHONY: install install-eval download-models check smoke plan-parallel estimate-tiny estimate-smoke estimate-distilgpt2-main estimate-main clean-tiny clean-smoke clean-distilgpt2-main clean-main comparison-tiny comparison-tiny-parallel validate-tiny comparison-smoke comparison-smoke-parallel validate-smoke build-prompts comparison-main comparison-main-parallel validate-main comparison-distilgpt2-main comparison-distilgpt2-main-parallel validate-distilgpt2-main eval-smoke table-smoke extended-smoke ppl-smoke trends-smoke metric-suite-smoke merge-smoke manifest-smoke analyze-smoke token-analyze-smoke plot-smoke extended-distilgpt2-main ppl-distilgpt2-main trends-distilgpt2-main metric-suite-distilgpt2-main merge-distilgpt2-main manifest-distilgpt2-main token-analyze-distilgpt2-main postprocess-distilgpt2-main extended-main ppl-main trends-main metric-suite-main merge-main manifest-main token-analyze-main postprocess-main paper-check paper-check-final export-smoke-table test dvc-init-local
 
 PYTHONPATH := src
 
@@ -87,27 +87,16 @@ build-prompts:
 		--limit 100 \
 		--min-words 40 \
 		--prompt-words 32 \
-		--prefix main
+		--prefix main \
+		--shuffle \
+		--seed 0
 
 comparison-main:
 	PYTHONPATH=$(PYTHONPATH) python scripts/run_pipeline.py --config configs/comparison_main_template.yaml
 
 comparison-main-parallel:
 	PYTHONPATH=$(PYTHONPATH) python scripts/run_experiment_parallel.py --config configs/comparison_main_template.yaml --num-shards auto --workers auto
-	$(MAKE) validate-main
-	PYTHONPATH=$(PYTHONPATH) python scripts/run_evaluate.py \
-		--input-dir outputs/generations/comparison_main \
-		--token-log-dir outputs/token_logs/comparison_main \
-		--output results/summary/comparison_main_metrics.csv
-	PYTHONPATH=$(PYTHONPATH) python scripts/build_results_table.py \
-		--metrics results/summary/comparison_main_metrics.csv \
-		--output results/summary/comparison_main_table.csv
-	PYTHONPATH=$(PYTHONPATH) python scripts/analyze_results.py \
-		--table results/summary/comparison_main_table.csv \
-		--output results/summary/comparison_main_analysis.md
-	PYTHONPATH=$(PYTHONPATH) python scripts/plot_results.py \
-		--input results/summary/comparison_main_metrics.csv \
-		--output-dir results/figures/comparison_main
+	$(MAKE) postprocess-main
 
 validate-main:
 	PYTHONPATH=$(PYTHONPATH) python scripts/validate_generation_outputs.py \
@@ -120,20 +109,7 @@ comparison-distilgpt2-main:
 
 comparison-distilgpt2-main-parallel:
 	PYTHONPATH=$(PYTHONPATH) python scripts/run_experiment_parallel.py --config configs/comparison_distilgpt2_main.yaml --num-shards auto --workers auto
-	$(MAKE) validate-distilgpt2-main
-	PYTHONPATH=$(PYTHONPATH) python scripts/run_evaluate.py \
-		--input-dir outputs/generations/comparison_distilgpt2_main \
-		--token-log-dir outputs/token_logs/comparison_distilgpt2_main \
-		--output results/summary/comparison_distilgpt2_main_metrics.csv
-	PYTHONPATH=$(PYTHONPATH) python scripts/build_results_table.py \
-		--metrics results/summary/comparison_distilgpt2_main_metrics.csv \
-		--output results/summary/comparison_distilgpt2_main_table.csv
-	PYTHONPATH=$(PYTHONPATH) python scripts/analyze_results.py \
-		--table results/summary/comparison_distilgpt2_main_table.csv \
-		--output results/summary/comparison_distilgpt2_main_analysis.md
-	PYTHONPATH=$(PYTHONPATH) python scripts/plot_results.py \
-		--input results/summary/comparison_distilgpt2_main_metrics.csv \
-		--output-dir results/figures/comparison_distilgpt2_main
+	$(MAKE) postprocess-distilgpt2-main
 
 validate-distilgpt2-main:
 	PYTHONPATH=$(PYTHONPATH) python scripts/validate_generation_outputs.py \
@@ -200,6 +176,124 @@ plot-smoke:
 	PYTHONPATH=$(PYTHONPATH) python scripts/plot_results.py \
 		--input results/summary/comparison_smoke_metrics.csv \
 		--output-dir results/figures/comparison_smoke
+
+postprocess-distilgpt2-main: validate-distilgpt2-main manifest-distilgpt2-main
+	PYTHONPATH=$(PYTHONPATH) python scripts/run_evaluate.py \
+		--input-dir outputs/generations/comparison_distilgpt2_main \
+		--token-log-dir outputs/token_logs/comparison_distilgpt2_main \
+		--output results/summary/comparison_distilgpt2_main_metrics.csv
+	PYTHONPATH=$(PYTHONPATH) python scripts/build_results_table.py \
+		--metrics results/summary/comparison_distilgpt2_main_metrics.csv \
+		--output results/summary/comparison_distilgpt2_main_table.csv
+	$(MAKE) analyze-distilgpt2-main token-analyze-distilgpt2-main plot-distilgpt2-main extended-distilgpt2-main ppl-distilgpt2-main trends-distilgpt2-main merge-distilgpt2-main metric-suite-distilgpt2-main
+
+analyze-distilgpt2-main:
+	PYTHONPATH=$(PYTHONPATH) python scripts/analyze_results.py \
+		--table results/summary/comparison_distilgpt2_main_table.csv \
+		--output results/summary/comparison_distilgpt2_main_analysis.md
+
+plot-distilgpt2-main:
+	PYTHONPATH=$(PYTHONPATH) python scripts/plot_results.py \
+		--input results/summary/comparison_distilgpt2_main_metrics.csv \
+		--output-dir results/figures/comparison_distilgpt2_main
+
+token-analyze-distilgpt2-main:
+	PYTHONPATH=$(PYTHONPATH) python scripts/analyze_token_logs.py \
+		--token-log-dir outputs/token_logs/comparison_distilgpt2_main \
+		--output-dir results/figures/comparison_distilgpt2_main/token_analysis \
+		--summary-output results/summary/comparison_distilgpt2_main_token_trace.csv
+
+extended-distilgpt2-main:
+	PYTHONPATH=$(PYTHONPATH) python scripts/evaluate_extended_metrics.py \
+		--input-dir outputs/generations/comparison_distilgpt2_main \
+		--output results/summary/comparison_distilgpt2_main_extended_metrics.csv
+
+ppl-distilgpt2-main:
+	PYTHONPATH=$(PYTHONPATH) python scripts/evaluate_ppl.py \
+		--input-dir outputs/generations/comparison_distilgpt2_main \
+		--model distilgpt2 \
+		--output results/summary/comparison_distilgpt2_main_ppl.csv
+
+trends-distilgpt2-main:
+	PYTHONPATH=$(PYTHONPATH) python scripts/fit_n_trends.py \
+		--table results/summary/comparison_distilgpt2_main_table.csv \
+		--output results/summary/comparison_distilgpt2_main_n_trend_models.csv \
+		--figure-dir results/figures/comparison_distilgpt2_main/n_trends
+
+merge-distilgpt2-main:
+	PYTHONPATH=$(PYTHONPATH) python scripts/merge_metric_tables.py \
+		--base results/summary/comparison_distilgpt2_main_table.csv \
+		--extras results/summary/comparison_distilgpt2_main_extended_metrics.csv results/summary/comparison_distilgpt2_main_ppl.csv \
+		--output results/summary/comparison_distilgpt2_main_merged_table.csv
+
+metric-suite-distilgpt2-main:
+	PYTHONPATH=$(PYTHONPATH) python scripts/plot_metric_suite.py \
+		--tables results/summary/comparison_distilgpt2_main_table.csv results/summary/comparison_distilgpt2_main_extended_metrics.csv results/summary/comparison_distilgpt2_main_ppl.csv \
+		--output-dir results/figures/comparison_distilgpt2_main/metric_suite
+
+manifest-distilgpt2-main:
+	PYTHONPATH=$(PYTHONPATH) python scripts/write_run_manifest.py \
+		--config configs/comparison_distilgpt2_main.yaml \
+		--output results/summary/comparison_distilgpt2_main_manifest.json
+
+postprocess-main: validate-main manifest-main
+	PYTHONPATH=$(PYTHONPATH) python scripts/run_evaluate.py \
+		--input-dir outputs/generations/comparison_main \
+		--token-log-dir outputs/token_logs/comparison_main \
+		--output results/summary/comparison_main_metrics.csv
+	PYTHONPATH=$(PYTHONPATH) python scripts/build_results_table.py \
+		--metrics results/summary/comparison_main_metrics.csv \
+		--output results/summary/comparison_main_table.csv
+	$(MAKE) analyze-main token-analyze-main plot-main extended-main ppl-main trends-main merge-main metric-suite-main
+
+analyze-main:
+	PYTHONPATH=$(PYTHONPATH) python scripts/analyze_results.py \
+		--table results/summary/comparison_main_table.csv \
+		--output results/summary/comparison_main_analysis.md
+
+plot-main:
+	PYTHONPATH=$(PYTHONPATH) python scripts/plot_results.py \
+		--input results/summary/comparison_main_metrics.csv \
+		--output-dir results/figures/comparison_main
+
+token-analyze-main:
+	PYTHONPATH=$(PYTHONPATH) python scripts/analyze_token_logs.py \
+		--token-log-dir outputs/token_logs/comparison_main \
+		--output-dir results/figures/comparison_main/token_analysis \
+		--summary-output results/summary/comparison_main_token_trace.csv
+
+extended-main:
+	PYTHONPATH=$(PYTHONPATH) python scripts/evaluate_extended_metrics.py \
+		--input-dir outputs/generations/comparison_main \
+		--output results/summary/comparison_main_extended_metrics.csv
+
+ppl-main:
+	PYTHONPATH=$(PYTHONPATH) python scripts/evaluate_ppl.py \
+		--input-dir outputs/generations/comparison_main \
+		--model gpt2 \
+		--output results/summary/comparison_main_ppl.csv
+
+trends-main:
+	PYTHONPATH=$(PYTHONPATH) python scripts/fit_n_trends.py \
+		--table results/summary/comparison_main_table.csv \
+		--output results/summary/comparison_main_n_trend_models.csv \
+		--figure-dir results/figures/comparison_main/n_trends
+
+merge-main:
+	PYTHONPATH=$(PYTHONPATH) python scripts/merge_metric_tables.py \
+		--base results/summary/comparison_main_table.csv \
+		--extras results/summary/comparison_main_extended_metrics.csv results/summary/comparison_main_ppl.csv \
+		--output results/summary/comparison_main_merged_table.csv
+
+metric-suite-main:
+	PYTHONPATH=$(PYTHONPATH) python scripts/plot_metric_suite.py \
+		--tables results/summary/comparison_main_table.csv results/summary/comparison_main_extended_metrics.csv results/summary/comparison_main_ppl.csv \
+		--output-dir results/figures/comparison_main/metric_suite
+
+manifest-main:
+	PYTHONPATH=$(PYTHONPATH) python scripts/write_run_manifest.py \
+		--config configs/comparison_main_template.yaml \
+		--output results/summary/comparison_main_manifest.json
 
 paper-check:
 	PYTHONPATH=$(PYTHONPATH) python scripts/check_paper_ready.py --manuscript paper/manuscript.md
