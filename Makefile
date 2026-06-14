@@ -1,4 +1,4 @@
-.PHONY: install install-eval check smoke comparison-smoke build-prompts comparison-main eval-smoke table-smoke extended-smoke ppl-smoke trends-smoke metric-suite-smoke analyze-smoke token-analyze-smoke plot-smoke test dvc-init-local
+.PHONY: install install-eval check smoke comparison-smoke build-prompts comparison-main eval-smoke table-smoke extended-smoke ppl-smoke trends-smoke metric-suite-smoke analyze-smoke token-analyze-smoke plot-smoke paper-check paper-check-final export-smoke-table test dvc-init-local
 
 PYTHONPATH := src
 
@@ -80,6 +80,18 @@ plot-smoke:
 	PYTHONPATH=$(PYTHONPATH) python scripts/plot_results.py \
 		--input results/summary/comparison_smoke_metrics.csv \
 		--output-dir results/figures/comparison_smoke
+
+paper-check:
+	PYTHONPATH=$(PYTHONPATH) python scripts/check_paper_ready.py --manuscript paper/manuscript.md
+
+paper-check-final:
+	PYTHONPATH=$(PYTHONPATH) python scripts/check_paper_ready.py --manuscript paper/manuscript.md --fail
+
+export-smoke-table:
+	PYTHONPATH=$(PYTHONPATH) python scripts/export_table_markdown.py \
+		--input results/summary/comparison_smoke_table.csv \
+		--output paper/tables/comparison_smoke_table.md \
+		--sort-by method n_trials
 
 test:
 	PYTHONPATH=$(PYTHONPATH) pytest -q
