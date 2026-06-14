@@ -1,0 +1,74 @@
+from __future__ import annotations
+
+import argparse
+import math
+from pathlib import Path
+
+import torch
+from tqdm import tqdm
+
+from flatness_decoding.io_utils import read_jsonl, write_csv
+from flatness_decoding.model_io import load_causal_lm
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--input-dir", required=True, help="Directory containing generation .jsonl files.")
+    parser.add_argument("--model", default="distilgpt2", help="Reference causal LM for scoring.")
+    parser.add_argument("--device", default="auto")
+    parser.add_argument("--dtype", default="auto")
+    parser.add_argument("--max-length", type=int, default=512)
+    parser.add_argument("--output", default="results/summary/ppl_metrics.csv")
+    return parser.parse_args()
+
+
+@torch.no_grad()
+def sequence_nll(model, tokenizer, text: str, device: torch.device, max_length: int) -> tuple[float, int]:
+    encoded = tokenizer(text, return_tensors="pt", truncation=True, max_length=max_length)
+    input_ids = encoded["input_ids"].to(device)
+    if input_ids.shape[1] < 2:
+        return 0.0, 0
+    outputs = model(input_ids=input_ids, labels=input_ids)
+    # HF causal LM loss is mean cross entropy over predicted tokens.
+    token_count = int(input_ids.shape[1] - 1)
+    return float(outputs.loss.detach().cpu().item()) * token_count, token_count
+
+
+def main() -> None:
+    args = parse_args()
+    model, tokenizer, device = load_causal_lm(args.model, args.device, args.dtype)
+    rows: list[dict] = []
+
+    for path in sorted(Path(args.input_dir).glob("*.jsonl")):
+        generations = read_jsonl(path)
+        total_nll = 0.0
+        total_tokens = 0
+        first = generations[0] if generations else {}
+        for row in tqdm(generations, desc=f"PPL {path.name}"):
+            nll, count = sequence_nll(model, tokenizer, str(row.get("text", "")), device, args.max_length)
+            total_nll += nll
+            total_tokens += count
+        mean_nll = total_nll / total_tokens if total_tokens > 0 else None
+        rows.append(
+            {
+                "file": str(path),
+                "reference_model": args.model,
+                "experiment_name": first.get("experiment_name"),
+                "model": first.get("model"),
+                "method": first.get("method"),
+                "method_family": first.get("method_family"),
+                "n_trials": first.get("n_trials"),
+                "seed": first.get("seed"),
+                "num_outputs": len(generations),
+                "scored_tokens": total_tokens,
+                "mean_nll": mean_nll,
+                "ppl": math.exp(mean_nll) if mean_nll is not None and mean_nll < 50 else None,
+            }
+        )
+
+    write_csv(args.output, rows)
+    print(f"wrote {args.output}")
+
+
+if __name__ == "__main__":
+    main()
