@@ -1,4 +1,4 @@
-.PHONY: install install-eval download-models check smoke plan-parallel clean-tiny clean-smoke clean-distilgpt2-main clean-main comparison-tiny comparison-tiny-parallel validate-tiny comparison-smoke comparison-smoke-parallel validate-smoke build-prompts comparison-main comparison-main-parallel validate-main comparison-distilgpt2-main comparison-distilgpt2-main-parallel validate-distilgpt2-main eval-smoke table-smoke extended-smoke ppl-smoke trends-smoke metric-suite-smoke merge-smoke manifest-smoke analyze-smoke token-analyze-smoke plot-smoke paper-check paper-check-final export-smoke-table test dvc-init-local
+.PHONY: install install-eval download-models check smoke plan-parallel estimate-tiny estimate-smoke estimate-distilgpt2-main estimate-main clean-tiny clean-smoke clean-distilgpt2-main clean-main comparison-tiny comparison-tiny-parallel validate-tiny comparison-smoke comparison-smoke-parallel validate-smoke build-prompts comparison-main comparison-main-parallel validate-main comparison-distilgpt2-main comparison-distilgpt2-main-parallel validate-distilgpt2-main eval-smoke table-smoke extended-smoke ppl-smoke trends-smoke metric-suite-smoke merge-smoke manifest-smoke analyze-smoke token-analyze-smoke plot-smoke paper-check paper-check-final export-smoke-table test dvc-init-local
 
 PYTHONPATH := src
 
@@ -19,6 +19,18 @@ smoke:
 
 plan-parallel:
 	PYTHONPATH=$(PYTHONPATH) python scripts/plan_parallelism.py
+
+estimate-tiny:
+	PYTHONPATH=$(PYTHONPATH) python scripts/estimate_experiment_cost.py --config configs/comparison_tiny.yaml
+
+estimate-smoke:
+	PYTHONPATH=$(PYTHONPATH) python scripts/estimate_experiment_cost.py --config configs/comparison_smoke.yaml
+
+estimate-distilgpt2-main:
+	PYTHONPATH=$(PYTHONPATH) python scripts/estimate_experiment_cost.py --config configs/comparison_distilgpt2_main.yaml
+
+estimate-main:
+	PYTHONPATH=$(PYTHONPATH) python scripts/estimate_experiment_cost.py --config configs/comparison_main_template.yaml
 
 clean-tiny:
 	PYTHONPATH=$(PYTHONPATH) python scripts/clean_experiment_outputs.py --experiment comparison_tiny --yes
