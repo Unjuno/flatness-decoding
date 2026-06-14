@@ -1,9 +1,12 @@
-.PHONY: install check smoke comparison-smoke build-prompts comparison-main eval-smoke table-smoke analyze-smoke token-analyze-smoke plot-smoke test dvc-init-local
+.PHONY: install install-eval check smoke comparison-smoke build-prompts comparison-main eval-smoke table-smoke extended-smoke ppl-smoke trends-smoke metric-suite-smoke analyze-smoke token-analyze-smoke plot-smoke test dvc-init-local
 
 PYTHONPATH := src
 
 install:
 	python -m pip install -r requirements-common.txt
+
+install-eval:
+	python -m pip install -r requirements-eval.txt
 
 check:
 	PYTHONPATH=$(PYTHONPATH) python scripts/check_device.py
@@ -39,6 +42,28 @@ table-smoke:
 	PYTHONPATH=$(PYTHONPATH) python scripts/build_results_table.py \
 		--metrics results/summary/comparison_smoke_metrics.csv \
 		--output results/summary/comparison_smoke_table.csv
+
+extended-smoke:
+	PYTHONPATH=$(PYTHONPATH) python scripts/evaluate_extended_metrics.py \
+		--input-dir outputs/generations/comparison_smoke \
+		--output results/summary/comparison_smoke_extended_metrics.csv
+
+ppl-smoke:
+	PYTHONPATH=$(PYTHONPATH) python scripts/evaluate_ppl.py \
+		--input-dir outputs/generations/comparison_smoke \
+		--model distilgpt2 \
+		--output results/summary/comparison_smoke_ppl.csv
+
+trends-smoke:
+	PYTHONPATH=$(PYTHONPATH) python scripts/fit_n_trends.py \
+		--table results/summary/comparison_smoke_table.csv \
+		--output results/summary/comparison_smoke_n_trend_models.csv \
+		--figure-dir results/figures/comparison_smoke/n_trends
+
+metric-suite-smoke:
+	PYTHONPATH=$(PYTHONPATH) python scripts/plot_metric_suite.py \
+		--tables results/summary/comparison_smoke_table.csv results/summary/comparison_smoke_extended_metrics.csv results/summary/comparison_smoke_ppl.csv \
+		--output-dir results/figures/comparison_smoke/metric_suite
 
 analyze-smoke:
 	PYTHONPATH=$(PYTHONPATH) python scripts/analyze_results.py \
