@@ -72,12 +72,17 @@ def choose_candidate(
     flatness_values: torch.Tensor,
     mode: DecodeMode,
 ) -> tuple[int, int]:
+    if candidate_ids.shape[0] < 1:
+        raise ValueError("candidate_ids must contain at least one candidate")
     if mode == "minflat":
         idx = int(torch.argmin(flatness_values).item())
     elif mode == "maxflat":
         idx = int(torch.argmax(flatness_values).item())
     elif mode == "random":
-        idx = int(torch.randint(0, candidate_ids.shape[0], (1,), device=candidate_ids.device).item())
+        # With one candidate there is no choice to make. Avoid consuming RNG so
+        # Random-1 remains an exact control for MinFlat-1/MaxFlat-1 under the
+        # same proposal seed.
+        idx = 0 if candidate_ids.shape[0] == 1 else int(torch.randint(0, candidate_ids.shape[0], (1,), device=candidate_ids.device).item())
     else:
         raise ValueError(f"Unknown mode: {mode}")
     return idx, int(candidate_ids[idx].item())
