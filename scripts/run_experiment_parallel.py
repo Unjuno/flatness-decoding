@@ -7,38 +7,47 @@ import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
+from flatness_decoding.parallelism import detect_parallel_plan
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", required=True)
-    parser.add_argument("--num-shards", type=int, required=True)
-    parser.add_argument("--workers", type=int, default=2)
+    parser.add_argument("--num-shards", default="auto", help="Integer or 'auto'.")
+    parser.add_argument("--workers", default="auto", help="Integer or 'auto'.")
     parser.add_argument(
         "--devices",
         nargs="*",
         default=None,
         help=(
             "Optional CUDA_VISIBLE_DEVICES values assigned round-robin, e.g. '0 1'. "
-            "Use only for CUDA multi-GPU runs. Omit for CPU/MPS/default device behavior."
+            "Use only for CUDA multi-GPU runs. Omit for auto/default device behavior."
         ),
     )
     parser.add_argument("--python", default=sys.executable)
+    parser.add_argument("--dry-run", action="store_true", help="Print resolved plan without running shards.")
     return parser.parse_args()
 
 
-def run_shard(args: argparse.Namespace, shard_index: int) -> tuple[int, int]:
+def run_shard(
+    python: str,
+    config: str,
+    num_shards: int,
+    devices: list[str] | None,
+    shard_index: int,
+) -> tuple[int, int]:
     env = os.environ.copy()
     env["PYTHONPATH"] = "src" + os.pathsep + env.get("PYTHONPATH", "")
-    if args.devices:
-        env["CUDA_VISIBLE_DEVICES"] = str(args.devices[shard_index % len(args.devices)])
+    if devices:
+        env["CUDA_VISIBLE_DEVICES"] = str(devices[shard_index % len(devices)])
 
     cmd = [
-        args.python,
+        python,
         "scripts/run_experiment_set.py",
         "--config",
-        args.config,
+        config,
         "--num-shards",
-        str(args.num_shards),
+        str(num_shards),
         "--shard-index",
         str(shard_index),
     ]
@@ -49,16 +58,33 @@ def run_shard(args: argparse.Namespace, shard_index: int) -> tuple[int, int]:
 
 def main() -> None:
     args = parse_args()
-    if args.num_shards < 1:
-        raise SystemExit("--num-shards must be >= 1")
-    if args.workers < 1:
-        raise SystemExit("--workers must be >= 1")
     if not Path(args.config).exists():
         raise SystemExit(f"config not found: {args.config}")
 
+    plan = detect_parallel_plan(
+        requested_num_shards=args.num_shards,
+        requested_workers=args.workers,
+    )
+    num_shards = plan.recommended_num_shards
+    workers = plan.recommended_workers
+    devices = args.devices if args.devices is not None else plan.recommended_devices
+
+    print("Resolved parallel plan")
+    print(f"backend: {plan.backend}")
+    print(f"workers: {workers}")
+    print(f"num_shards: {num_shards}")
+    print(f"devices: {devices}")
+    print(f"caution: {plan.caution}")
+
+    if args.dry_run:
+        return
+
     failed: list[tuple[int, int]] = []
-    with ThreadPoolExecutor(max_workers=args.workers) as executor:
-        futures = [executor.submit(run_shard, args, shard_idx) for shard_idx in range(args.num_shards)]
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        futures = [
+            executor.submit(run_shard, args.python, args.config, num_shards, devices, shard_idx)
+            for shard_idx in range(num_shards)
+        ]
         for future in as_completed(futures):
             shard_idx, code = future.result()
             if code != 0:
