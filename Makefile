@@ -1,4 +1,4 @@
-.PHONY: install check smoke comparison-smoke build-prompts comparison-main eval-smoke table-smoke plot-smoke test dvc-init-local
+.PHONY: install check smoke comparison-smoke build-prompts comparison-main eval-smoke table-smoke analyze-smoke token-analyze-smoke plot-smoke test dvc-init-local
 
 PYTHONPATH := src
 
@@ -39,6 +39,17 @@ table-smoke:
 	PYTHONPATH=$(PYTHONPATH) python scripts/build_results_table.py \
 		--metrics results/summary/comparison_smoke_metrics.csv \
 		--output results/summary/comparison_smoke_table.csv
+
+analyze-smoke:
+	PYTHONPATH=$(PYTHONPATH) python scripts/analyze_results.py \
+		--table results/summary/comparison_smoke_table.csv \
+		--output results/summary/comparison_smoke_analysis.md
+
+token-analyze-smoke:
+	PYTHONPATH=$(PYTHONPATH) python scripts/analyze_token_logs.py \
+		--token-log-dir outputs/token_logs/comparison_smoke \
+		--output-dir results/figures/comparison_smoke/token_analysis \
+		--summary-output results/summary/comparison_smoke_token_trace.csv
 
 plot-smoke:
 	PYTHONPATH=$(PYTHONPATH) python scripts/plot_results.py \
