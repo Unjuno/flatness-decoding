@@ -25,6 +25,7 @@ def candidate_paths(experiment: str) -> list[Path]:
         Path("paper/tables") / f"{experiment}_table.md",
         *Path("results/summary").glob(f"{experiment}*.csv"),
         *Path("results/summary").glob(f"{experiment}*.md"),
+        *Path("results/summary").glob(f"{experiment}*.json"),
     ]
 
 
