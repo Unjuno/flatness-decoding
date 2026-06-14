@@ -25,15 +25,49 @@ def parse_args() -> argparse.Namespace:
 
 
 @torch.no_grad()
-def sequence_nll(model, tokenizer, text: str, device: torch.device, max_length: int) -> tuple[float, int]:
-    encoded = tokenizer(text, return_tensors="pt", truncation=True, max_length=max_length)
+def conditional_continuation_nll(
+    model,
+    tokenizer,
+    prompt: str,
+    continuation: str,
+    device: torch.device,
+    max_length: int,
+) -> tuple[float, int]:
+    """Score continuation tokens conditioned on the prompt.
+
+    Prompt tokens provide context but are masked out of the loss. This avoids both
+    prompt contamination and context-free continuation scoring.
+    """
+    if continuation == "":
+        return 0.0, 0
+
+    full_text = prompt + continuation if prompt else continuation
+    prompt_ids = tokenizer(prompt, return_tensors="pt", add_special_tokens=False)["input_ids"]
+    encoded = tokenizer(
+        full_text,
+        return_tensors="pt",
+        truncation=True,
+        max_length=max_length,
+        add_special_tokens=False,
+    )
     input_ids = encoded["input_ids"].to(device)
+    attention_mask = encoded.get("attention_mask")
+    if attention_mask is not None:
+        attention_mask = attention_mask.to(device)
+
     if input_ids.shape[1] < 2:
         return 0.0, 0
-    outputs = model(input_ids=input_ids, labels=input_ids)
-    # HF causal LM loss is mean cross entropy over predicted tokens.
-    token_count = int(input_ids.shape[1] - 1)
-    return float(outputs.loss.detach().cpu().item()) * token_count, token_count
+
+    prompt_len = min(int(prompt_ids.shape[1]), int(input_ids.shape[1]))
+    labels = input_ids.clone()
+    labels[:, :prompt_len] = -100
+
+    scored_tokens = int((labels[:, 1:] != -100).sum().detach().cpu().item())
+    if scored_tokens == 0:
+        return 0.0, 0
+
+    outputs = model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
+    return float(outputs.loss.detach().cpu().item()) * scored_tokens, scored_tokens
 
 
 def main() -> None:
@@ -52,8 +86,16 @@ def main() -> None:
         total_tokens = 0
         first = generations[0] if generations else {}
         for row in tqdm(generations, desc=f"PPL {path.name}"):
-            text = analysis_text_from_row(row)
-            nll, count = sequence_nll(model, tokenizer, text, device, args.max_length)
+            prompt = str(row.get("prompt", ""))
+            continuation = analysis_text_from_row(row)
+            nll, count = conditional_continuation_nll(
+                model=model,
+                tokenizer=tokenizer,
+                prompt=prompt,
+                continuation=continuation,
+                device=device,
+                max_length=args.max_length,
+            )
             total_nll += nll
             total_tokens += count
         mean_nll = total_nll / total_tokens if total_tokens > 0 else None
@@ -61,7 +103,7 @@ def main() -> None:
             {
                 "file": str(path),
                 "reference_model": args.model,
-                "scored_text": "continuation",
+                "scored_text": "continuation_conditioned_on_prompt",
                 "experiment_name": first.get("experiment_name"),
                 "model": first.get("model"),
                 "method": first.get("method"),
