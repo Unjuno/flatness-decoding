@@ -1,5 +1,6 @@
 experiment_name: comparison_smoke
 model_name: distilgpt2
+model_cache_dir: models/hf
 device: auto
 dtype: auto
 seeds: [0]
