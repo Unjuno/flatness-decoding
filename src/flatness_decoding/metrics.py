@@ -131,6 +131,7 @@ def summarize_token_log_file(path: str | Path) -> dict[str, float | int | str | 
             "mean_min_candidate_flatness": 0.0,
             "mean_max_candidate_flatness": 0.0,
             "mean_selection_gain": 0.0,
+            "mean_candidate_unique_count": 0.0,
         }
 
     chosen = [float(row.get("chosen_flatness", 0.0)) for row in rows]
@@ -138,6 +139,10 @@ def summarize_token_log_file(path: str | Path) -> dict[str, float | int | str | 
     min_candidate = [float(row.get("mean_min_candidate_flatness", 0.0)) for row in rows]
     max_candidate = [float(row.get("mean_max_candidate_flatness", 0.0)) for row in rows]
     gains = [float(row.get("selection_gain", 0.0)) for row in rows]
+    unique_counts = [
+        float(row.get("candidate_unique_count", len(set(row.get("candidate_ids", [])))))
+        for row in rows
+    ]
 
     return {
         "file": str(path),
@@ -148,4 +153,5 @@ def summarize_token_log_file(path: str | Path) -> dict[str, float | int | str | 
         "mean_min_candidate_flatness": mean_or_none(min_candidate),
         "mean_max_candidate_flatness": mean_or_none(max_candidate),
         "mean_selection_gain": mean_or_none(gains),
+        "mean_candidate_unique_count": mean_or_none(unique_counts),
     }
