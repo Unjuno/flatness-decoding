@@ -23,6 +23,7 @@ paper/quality_evaluation_plan.md
 paper/flatness_validity_argument.md
 notes/evaluation_matrix.md
 notes/parallel_execution.md
+notes/output_cleaning.md
 ```
 
 ## Core idea
@@ -53,8 +54,6 @@ If only probabilities are available, `Std(log p)` can be used because `log p_i =
 
 ## Comparison set
 
-The repository includes a thesis-level comparison set.
-
 ### Standard baselines
 
 - `greedy`
@@ -71,6 +70,17 @@ The repository includes a thesis-level comparison set.
 - `maxflat`: MaxFlat-N negative control
 
 `N` sweep is applied only to N-trial methods. Standard baselines do not have `N`.
+
+## Metrics policy
+
+Generation rows store both:
+
+```text
+text               # full decoded text, usually prompt + continuation
+continuation_text  # generated continuation only
+```
+
+Evaluation scripts use `continuation_text` when available. For legacy outputs without this field, they remove the `prompt` prefix from `text` when possible. This prevents prompt text from contaminating distinct/repetition/PPL-style metrics.
 
 ## Hardware support and parallel execution
 
@@ -100,6 +110,22 @@ See:
 
 ```text
 notes/parallel_execution.md
+```
+
+## Clean outputs before repeated runs
+
+Evaluation scripts aggregate all JSONL files in each output directory. Clean an experiment before rerunning the same `experiment_name`.
+
+```bash
+make clean-smoke
+make clean-distilgpt2-main
+make clean-main
+```
+
+See:
+
+```text
+notes/output_cleaning.md
 ```
 
 ## Model cache policy
@@ -142,6 +168,7 @@ make plan-parallel
 Run:
 
 ```bash
+make clean-smoke
 make comparison-smoke-parallel
 ```
 
@@ -190,10 +217,13 @@ The prompt file is the experimental set. Every method must use the same rows in 
 Follow `ROADMAP.md`. The short version is:
 
 ```bash
+make clean-smoke
 make comparison-smoke-parallel
 make build-prompts
+make clean-distilgpt2-main
 make comparison-distilgpt2-main-parallel
 # inspect outputs before running the full gpt2 experiment
+make clean-main
 make comparison-main-parallel
 ```
 
@@ -257,6 +287,8 @@ The repository contains:
 - standard baselines including beam search
 - model cache/downloader support
 - hardware-aware parallel execution
+- clean targets for repeated experiments
+- continuation-only metric evaluation
 - comparison experiment configs
 - prompt subset builder
 - evaluation, trend fitting, and plotting scripts
@@ -272,6 +304,7 @@ make check
 make test
 make smoke
 make plan-parallel
+make clean-smoke
 make comparison-smoke-parallel
 ```
 
