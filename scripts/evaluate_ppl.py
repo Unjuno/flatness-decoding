@@ -8,6 +8,7 @@ import torch
 from tqdm import tqdm
 
 from flatness_decoding.io_utils import read_jsonl, write_csv
+from flatness_decoding.metrics import analysis_text_from_row
 from flatness_decoding.model_io import load_causal_lm
 
 
@@ -17,6 +18,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--model", default="distilgpt2", help="Reference causal LM for scoring.")
     parser.add_argument("--device", default="auto")
     parser.add_argument("--dtype", default="auto")
+    parser.add_argument("--model-cache-dir", default="models/hf")
     parser.add_argument("--max-length", type=int, default=512)
     parser.add_argument("--output", default="results/summary/ppl_metrics.csv")
     return parser.parse_args()
@@ -36,7 +38,12 @@ def sequence_nll(model, tokenizer, text: str, device: torch.device, max_length: 
 
 def main() -> None:
     args = parse_args()
-    model, tokenizer, device = load_causal_lm(args.model, args.device, args.dtype)
+    model, tokenizer, device = load_causal_lm(
+        args.model,
+        args.device,
+        args.dtype,
+        cache_dir=args.model_cache_dir,
+    )
     rows: list[dict] = []
 
     for path in sorted(Path(args.input_dir).glob("*.jsonl")):
@@ -45,7 +52,8 @@ def main() -> None:
         total_tokens = 0
         first = generations[0] if generations else {}
         for row in tqdm(generations, desc=f"PPL {path.name}"):
-            nll, count = sequence_nll(model, tokenizer, str(row.get("text", "")), device, args.max_length)
+            text = analysis_text_from_row(row)
+            nll, count = sequence_nll(model, tokenizer, text, device, args.max_length)
             total_nll += nll
             total_tokens += count
         mean_nll = total_nll / total_tokens if total_tokens > 0 else None
@@ -53,6 +61,7 @@ def main() -> None:
             {
                 "file": str(path),
                 "reference_model": args.model,
+                "scored_text": "continuation",
                 "experiment_name": first.get("experiment_name"),
                 "model": first.get("model"),
                 "method": first.get("method"),
