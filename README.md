@@ -26,17 +26,29 @@ If only probabilities are available, `Std(log p)` can be used because `log p_i =
 
 ## Main research questions
 
-1. Does Flatness-N reduce next-state logit standard deviation compared with Random-N and standard sampling?
-2. How does Flatness-N affect repetition, diversity, perplexity-like proxies, and runtime?
+1. Does Flatness-N reduce next-state logit standard deviation compared with Random-N and ordinary baselines?
+2. How does Flatness-N affect repetition, diversity, quality proxies, and runtime?
 3. How do these metrics change as `N` increases?
 
-## Methods to compare
+## Comparison set
 
-- Standard sampling / `N=1`
-- Random-N: sample `N` candidates and select randomly
-- Flatness-N / MinFlat-N: select the candidate with the minimum next-state logit standard deviation
-- MaxFlat-N: select the candidate with the maximum next-state logit standard deviation as a negative control
-- Existing baselines later: temperature sampling, top-p, top-k, greedy, etc.
+The repository now includes a thesis-level comparison set.
+
+### Standard baselines
+
+- `greedy`
+- `sampling`
+- `temperature`
+- `top_p`
+- `top_k`
+
+### N-trial methods
+
+- `random`: Random-N baseline
+- `minflat`: Flatness-N / MinFlat-N
+- `maxflat`: MaxFlat-N negative control
+
+`N` sweep is applied only to N-trial methods. Standard baselines do not have `N`.
 
 ## Hardware support
 
@@ -58,7 +70,40 @@ PYTHONPATH=src python scripts/check_device.py
 PYTHONPATH=src python scripts/smoke_test.py
 ```
 
-## Run a small generation
+## Run the full comparison smoke pipeline
+
+This is the first command to run after cloning locally.
+
+```bash
+PYTHONPATH=src python scripts/run_pipeline.py \
+  --config configs/comparison_smoke.yaml
+```
+
+This runs:
+
+1. `scripts/run_experiment_set.py`
+2. `scripts/run_evaluate.py`
+3. `scripts/plot_results.py`
+
+Outputs:
+
+```text
+outputs/generations/comparison_smoke/
+outputs/token_logs/comparison_smoke/
+results/summary/comparison_smoke_metrics.csv
+results/figures/comparison_smoke/
+```
+
+## Run the main comparison template
+
+Before running this, create `prompts/main_prompts.jsonl` with a fixed benchmark prompt subset.
+
+```bash
+PYTHONPATH=src python scripts/run_pipeline.py \
+  --config configs/comparison_main_template.yaml
+```
+
+## Run a single generation
 
 ```bash
 PYTHONPATH=src python scripts/run_generate.py \
@@ -70,38 +115,27 @@ PYTHONPATH=src python scripts/run_generate.py \
   --device auto
 ```
 
-## Run an N sweep
-
-```bash
-PYTHONPATH=src python scripts/run_sweep_n.py \
-  --model distilgpt2 \
-  --prompts prompts/toy_prompts.jsonl \
-  --methods random minflat maxflat \
-  --n-values 1 4 8 16 \
-  --max-new-tokens 80 \
-  --output-dir outputs/generations/smoke
-```
-
-## Evaluate generated outputs
-
-```bash
-PYTHONPATH=src python scripts/run_evaluate.py \
-  --input-dir outputs/generations/smoke \
-  --output results/summary/smoke_metrics.csv
-```
-
 ## Data and artifact policy
 
 - Code, configs, prompt subsets, summary CSVs, and figures should be tracked by Git.
 - Raw datasets, full generations, token-level logs, model caches, and checkpoints should be tracked by DVC or kept outside Git.
 - Do not commit full logits or full probability vectors.
 
-## Status
+## Current status
 
-Initial research scaffold. The first target is to verify:
+The repository now contains:
+
+- research plan and related-work notes
+- standard baseline implementations
+- Flatness-N, Random-N, and MaxFlat-N implementations
+- comparison experiment-set configs
+- an end-to-end pipeline script
+- basic evaluation and plotting scripts
+
+The next local step is to run `configs/comparison_smoke.yaml` and inspect whether:
 
 ```text
-mean_flatness(Flatness-N) < mean_flatness(Random-N)
+mean_flatness(minflat) < mean_flatness(random)
 ```
 
-for a small prompt set and several values of `N`.
+and how the output metrics change as `N` increases.
