@@ -1,0 +1,32 @@
+experiment_name: comparison_tiny
+model_name: distilgpt2
+model_cache_dir: models/hf
+device: auto
+dtype: auto
+seeds: [0]
+
+generation:
+  max_new_tokens: 20
+
+prompts:
+  path: prompts/toy_prompts.jsonl
+  limit: 2
+
+baselines:
+  methods: [greedy, beam, sampling, top_p]
+  temperature: 1.1
+  top_p: 0.9
+  top_k: 50
+  num_beams: 2
+
+n_trial_methods:
+  methods: [random, minflat, maxflat]
+  n_values: [1, 2]
+  proposal_temperature: 1.0
+
+output:
+  generations_dir: outputs/generations/comparison_tiny
+  token_log_dir: outputs/token_logs/comparison_tiny
+  summary_csv: results/summary/comparison_tiny_metrics.csv
+  table_csv: results/summary/comparison_tiny_table.csv
+  figures_dir: results/figures/comparison_tiny
