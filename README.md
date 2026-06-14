@@ -23,6 +23,7 @@ paper/quality_evaluation_plan.md
 paper/flatness_validity_argument.md
 notes/evaluation_matrix.md
 notes/parallel_execution.md
+notes/remote_execution.md
 notes/output_cleaning.md
 ```
 
@@ -81,6 +82,40 @@ continuation_text  # generated continuation only
 ```
 
 Evaluation scripts use `continuation_text` when available. For legacy outputs without this field, they remove the `prompt` prefix from `text` when possible. This prevents prompt text from contaminating distinct/repetition/PPL-style metrics.
+
+## Local versus remote execution
+
+Use the local machine for structural checks only:
+
+```bash
+make install
+make download-models
+make check
+make test
+make smoke
+make plan-parallel
+make clean-tiny
+make comparison-tiny-parallel
+make validate-tiny
+```
+
+Run long experiments on a separate remote machine or GPU PC:
+
+```bash
+bash scripts/remote_run_make.sh comparison-distilgpt2-main-parallel
+```
+
+or, for the full `gpt2` run:
+
+```bash
+bash scripts/remote_run_make.sh comparison-main-parallel
+```
+
+See:
+
+```text
+notes/remote_execution.md
+```
 
 ## Hardware support and parallel execution
 
@@ -242,10 +277,10 @@ make clean-smoke
 make comparison-smoke-parallel
 make build-prompts
 make clean-distilgpt2-main
-make comparison-distilgpt2-main-parallel
+bash scripts/remote_run_make.sh comparison-distilgpt2-main-parallel
 # inspect outputs before running the full gpt2 experiment
 make clean-main
-make comparison-main-parallel
+bash scripts/remote_run_make.sh comparison-main-parallel
 ```
 
 Do not run the full main experiment until tiny, smoke, and lightweight main outputs look sane.
@@ -308,6 +343,7 @@ The repository contains:
 - standard baselines including beam search
 - model cache/downloader support
 - hardware-aware parallel execution
+- remote execution workflow
 - clean targets for repeated experiments
 - continuation-only metric evaluation
 - output validation script
@@ -331,7 +367,7 @@ make comparison-tiny-parallel
 make validate-tiny
 ```
 
-Then proceed to smoke and inspect whether:
+Then run longer experiments on a separate machine and inspect whether:
 
 ```text
 mean_chosen_flatness(minflat) < mean_chosen_flatness(random) < mean_chosen_flatness(maxflat)
