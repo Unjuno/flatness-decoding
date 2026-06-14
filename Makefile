@@ -1,4 +1,4 @@
-.PHONY: install install-eval check smoke comparison-smoke build-prompts comparison-main eval-smoke table-smoke extended-smoke ppl-smoke trends-smoke metric-suite-smoke analyze-smoke token-analyze-smoke plot-smoke paper-check paper-check-final export-smoke-table test dvc-init-local
+.PHONY: install install-eval download-models check smoke comparison-smoke build-prompts comparison-main comparison-distilgpt2-main eval-smoke table-smoke extended-smoke ppl-smoke trends-smoke metric-suite-smoke analyze-smoke token-analyze-smoke plot-smoke paper-check paper-check-final export-smoke-table test dvc-init-local
 
 PYTHONPATH := src
 
@@ -7,6 +7,9 @@ install:
 
 install-eval:
 	python -m pip install -r requirements-eval.txt
+
+download-models:
+	PYTHONPATH=$(PYTHONPATH) python scripts/download_models.py --manifest configs/model_manifest.yaml --cache-dir models/hf
 
 check:
 	PYTHONPATH=$(PYTHONPATH) python scripts/check_device.py
@@ -31,6 +34,9 @@ build-prompts:
 
 comparison-main:
 	PYTHONPATH=$(PYTHONPATH) python scripts/run_pipeline.py --config configs/comparison_main_template.yaml
+
+comparison-distilgpt2-main:
+	PYTHONPATH=$(PYTHONPATH) python scripts/run_pipeline.py --config configs/comparison_distilgpt2_main.yaml
 
 eval-smoke:
 	PYTHONPATH=$(PYTHONPATH) python scripts/run_evaluate.py \
