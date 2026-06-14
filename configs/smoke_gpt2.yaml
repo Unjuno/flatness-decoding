@@ -1,0 +1,18 @@
+experiment_name: smoke_gpt2
+model_name: distilgpt2
+device: auto
+dtype: auto
+
+generation:
+  max_new_tokens: 50
+  proposal_temperature: 1.0
+  n_trials: 4
+  method: minflat
+
+prompts:
+  path: prompts/toy_prompts.jsonl
+  limit: 5
+
+output:
+  generations_dir: outputs/generations/smoke_gpt2
+  token_log_dir: outputs/token_logs/smoke_gpt2
