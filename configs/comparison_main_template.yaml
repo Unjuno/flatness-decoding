@@ -1,0 +1,34 @@
+experiment_name: comparison_main
+model_name: gpt2
+device: auto
+dtype: auto
+seeds: [0, 1, 2]
+
+generation:
+  max_new_tokens: 160
+
+prompts:
+  # Replace this with a fixed benchmark prompt subset before the main run.
+  # The JSONL schema must be: {"id": "...", "prompt": "..."}
+  path: prompts/main_prompts.jsonl
+  limit: 100
+
+baselines:
+  # These are the standard baselines for the thesis-level comparison.
+  # Do not treat this as exhaustive reproduction of every decoding paper.
+  methods: [greedy, sampling, temperature, top_p, top_k]
+  temperature: 1.2
+  top_p: 0.9
+  top_k: 50
+
+n_trial_methods:
+  # N sweep only applies to N-trial methods.
+  methods: [random, minflat, maxflat]
+  n_values: [1, 4, 8, 16, 32]
+  proposal_temperature: 1.0
+
+output:
+  generations_dir: outputs/generations/comparison_main
+  token_log_dir: outputs/token_logs/comparison_main
+  summary_csv: results/summary/comparison_main_metrics.csv
+  figures_dir: results/figures/comparison_main
