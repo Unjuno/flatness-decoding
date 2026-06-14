@@ -101,6 +101,7 @@ make plan-parallel
 Parallel targets use automatic worker/shard selection:
 
 ```bash
+make comparison-tiny-parallel
 make comparison-smoke-parallel
 make comparison-distilgpt2-main-parallel
 make comparison-main-parallel
@@ -117,6 +118,7 @@ notes/parallel_execution.md
 Evaluation scripts aggregate all JSONL files in each output directory. Clean an experiment before rerunning the same `experiment_name`.
 
 ```bash
+make clean-tiny
 make clean-smoke
 make clean-distilgpt2-main
 make clean-main
@@ -163,6 +165,18 @@ make smoke
 make plan-parallel
 ```
 
+## Tiny debug comparison
+
+Before smoke or main experiments, run the tiny config:
+
+```bash
+make clean-tiny
+make comparison-tiny-parallel
+make validate-tiny
+```
+
+This uses only two toy prompts and a small method/N grid. It is intended to catch structural errors before longer runs.
+
 ## First full smoke comparison
 
 Run:
@@ -179,6 +193,8 @@ make extended-smoke
 make ppl-smoke
 make trends-smoke
 make metric-suite-smoke
+make merge-smoke
+make manifest-smoke
 make export-smoke-table
 ```
 
@@ -191,6 +207,8 @@ results/summary/comparison_smoke_metrics.csv
 results/summary/comparison_smoke_table.csv
 results/summary/comparison_smoke_analysis.md
 results/summary/comparison_smoke_token_trace.csv
+results/summary/comparison_smoke_merged_table.csv
+results/summary/comparison_smoke_manifest.json
 results/figures/comparison_smoke/
 results/figures/comparison_smoke/token_analysis/
 paper/tables/comparison_smoke_table.md
@@ -217,6 +235,9 @@ The prompt file is the experimental set. Every method must use the same rows in 
 Follow `ROADMAP.md`. The short version is:
 
 ```bash
+make clean-tiny
+make comparison-tiny-parallel
+make validate-tiny
 make clean-smoke
 make comparison-smoke-parallel
 make build-prompts
@@ -227,7 +248,7 @@ make clean-main
 make comparison-main-parallel
 ```
 
-Do not run the full main experiment until smoke and lightweight main outputs look sane.
+Do not run the full main experiment until tiny, smoke, and lightweight main outputs look sane.
 
 ## Run a single generation
 
@@ -289,9 +310,10 @@ The repository contains:
 - hardware-aware parallel execution
 - clean targets for repeated experiments
 - continuation-only metric evaluation
-- comparison experiment configs
+- output validation script
+- comparison experiment configs including a tiny debug config
 - prompt subset builder
-- evaluation, trend fitting, and plotting scripts
+- evaluation, trend fitting, metric merging, manifest, and plotting scripts
 - paper manuscript and thesis planning files
 - roadmap and local verification gates
 
@@ -304,11 +326,12 @@ make check
 make test
 make smoke
 make plan-parallel
-make clean-smoke
-make comparison-smoke-parallel
+make clean-tiny
+make comparison-tiny-parallel
+make validate-tiny
 ```
 
-Then inspect whether:
+Then proceed to smoke and inspect whether:
 
 ```text
 mean_chosen_flatness(minflat) < mean_chosen_flatness(random) < mean_chosen_flatness(maxflat)
