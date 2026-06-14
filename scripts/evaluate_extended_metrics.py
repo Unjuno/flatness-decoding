@@ -8,7 +8,7 @@ from pathlib import Path
 import pandas as pd
 
 from flatness_decoding.io_utils import read_jsonl, write_csv
-from flatness_decoding.metrics import distinct_n, repetition_rate
+from flatness_decoding.metrics import analysis_text_from_row, distinct_n, repetition_rate
 
 
 def parse_args() -> argparse.Namespace:
@@ -74,6 +74,7 @@ def metadata(rows: list[dict]) -> dict:
         "baseline_temperature",
         "top_p",
         "top_k",
+        "num_beams",
         "seed",
     ]
     return {key: first.get(key) for key in keys}
@@ -81,14 +82,14 @@ def metadata(rows: list[dict]) -> dict:
 
 def summarize_file(path: Path) -> dict:
     rows = read_jsonl(path)
-    texts = [str(row.get("text", "")) for row in rows]
+    texts = [analysis_text_from_row(row) for row in rows]
     word_lengths = [len(tokenize(text)) for text in texts]
     return {
         "file": str(path),
         **metadata(rows),
         "num_outputs": len(texts),
-        "mean_words": sum(word_lengths) / len(word_lengths) if word_lengths else 0.0,
-        "median_words": float(pd.Series(word_lengths).median()) if word_lengths else 0.0,
+        "mean_continuation_words": sum(word_lengths) / len(word_lengths) if word_lengths else 0.0,
+        "median_continuation_words": float(pd.Series(word_lengths).median()) if word_lengths else 0.0,
         "type_token_ratio": type_token_ratio(texts),
         "unique_output_ratio": unique_output_ratio(texts),
         "distinct_1": distinct_n(texts, 1),
