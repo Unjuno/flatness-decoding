@@ -1,0 +1,8 @@
+# Optional evaluation dependencies.
+# Install only when running heavier automatic metrics.
+
+sacrebleu
+rouge-score
+bert-score
+mauve-text
+scikit-learn
