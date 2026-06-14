@@ -6,5 +6,6 @@ __all__ = [
     "flatness",
     "sampling",
     "decoding",
+    "baselines",
     "metrics",
 ]
