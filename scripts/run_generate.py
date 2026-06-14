@@ -5,6 +5,7 @@ from pathlib import Path
 
 from flatness_decoding.decoding import generate_flatness_controlled
 from flatness_decoding.io_utils import write_jsonl
+from flatness_decoding.metrics import continuation_from_text
 from flatness_decoding.model_io import load_causal_lm
 
 
@@ -47,6 +48,7 @@ def main() -> None:
     )
 
     print(text)
+    continuation_text = continuation_from_text(text, args.prompt)
 
     output_row = {
         "model": args.model,
@@ -56,6 +58,7 @@ def main() -> None:
         "seed": args.seed,
         "prompt": args.prompt,
         "text": text,
+        "continuation_text": continuation_text,
     }
 
     if args.output:
