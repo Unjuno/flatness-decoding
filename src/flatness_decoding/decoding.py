@@ -18,6 +18,7 @@ class StepRecord:
     n_trials: int
     proposal_temperature: float
     candidate_ids: list[int]
+    candidate_unique_count: int
     candidate_flatness: list[float]
     chosen_id: int
     chosen_flatness: float
@@ -82,6 +83,22 @@ def choose_candidate(
     return idx, int(candidate_ids[idx].item())
 
 
+def banned_candidate_tokens(tokenizer) -> set[int]:
+    """Return special token IDs to ban from proposal candidates.
+
+    GPT-2-like models often have no native pad token, so `model_io` sets
+    `pad_token=eos_token`. In that case, banning `pad_token_id` would also ban
+    EOS and prevent Flatness-N from stopping early. Therefore, ban pad only when
+    it is distinct from EOS.
+    """
+    banned: set[int] = set()
+    pad_id = tokenizer.pad_token_id
+    eos_id = tokenizer.eos_token_id
+    if pad_id is not None and pad_id != eos_id:
+        banned.add(int(pad_id))
+    return banned
+
+
 @torch.no_grad()
 def generate_flatness_controlled(
     model,
@@ -110,7 +127,7 @@ def generate_flatness_controlled(
     input_ids = encoded["input_ids"].to(device)
     records: list[StepRecord] = []
 
-    banned = {tokenizer.pad_token_id} if tokenizer.pad_token_id is not None else set()
+    banned = banned_candidate_tokens(tokenizer)
 
     for step in range(max_new_tokens):
         logits_now = next_logits(model, input_ids)
@@ -144,6 +161,7 @@ def generate_flatness_controlled(
                 n_trials=n_trials,
                 proposal_temperature=proposal_temperature,
                 candidate_ids=[int(x) for x in candidate_ids.detach().cpu().tolist()],
+                candidate_unique_count=len(set(int(x) for x in candidate_ids.detach().cpu().tolist())),
                 candidate_flatness=[float(x) for x in flatness_values.detach().cpu().tolist()],
                 chosen_id=chosen_id,
                 chosen_flatness=float(flatness_values[chosen_index].detach().cpu().item()),
