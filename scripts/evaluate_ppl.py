@@ -76,7 +76,13 @@ def full_text_for_ppl(row: dict) -> str:
         return text
     prompt = str(row.get("prompt", ""))
     continuation = analysis_text_from_row(row)
-    return prompt + continuation if prompt else continuation
+    if not prompt:
+        return continuation
+    if not continuation:
+        return prompt
+    if continuation[0].isspace():
+        return prompt + continuation
+    return prompt + " " + continuation
 
 
 def main() -> None:
