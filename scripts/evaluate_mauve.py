@@ -4,6 +4,7 @@ import argparse
 from pathlib import Path
 
 from flatness_decoding.io_utils import read_jsonl, write_csv
+from flatness_decoding.metrics import analysis_text_from_row
 
 
 def parse_args() -> argparse.Namespace:
@@ -39,6 +40,7 @@ def metadata(rows: list[dict]) -> dict:
         "baseline_temperature",
         "top_p",
         "top_k",
+        "num_beams",
         "seed",
     ]
     return {key: first.get(key) for key in keys}
@@ -62,12 +64,17 @@ def main() -> None:
             prompt_id = str(row.get("prompt_id", ""))
             if prompt_id not in refs:
                 continue
-            generated.append(str(row.get("text", "")))
+            generated.append(analysis_text_from_row(row))
             reference.append(refs[prompt_id])
             if len(generated) >= args.max_texts:
                 break
 
-        result = {"file": str(path), **metadata(rows), "num_scored": len(generated)}
+        result = {
+            "file": str(path),
+            **metadata(rows),
+            "scored_text": "continuation",
+            "num_scored": len(generated),
+        }
         if generated:
             out = mauve.compute_mauve(
                 p_text=reference,
