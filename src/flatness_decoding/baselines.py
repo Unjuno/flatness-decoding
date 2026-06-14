@@ -5,7 +5,7 @@ from typing import Literal
 
 import torch
 
-BaselineMethod = Literal["greedy", "sampling", "temperature", "top_p", "top_k"]
+BaselineMethod = Literal["greedy", "beam", "sampling", "temperature", "top_p", "top_k"]
 
 
 @dataclass
@@ -28,14 +28,16 @@ def generate_baseline(
     temperature: float = 1.0,
     top_p: float = 0.9,
     top_k: int = 50,
+    num_beams: int = 4,
     device: torch.device | None = None,
     seed: int | None = None,
 ) -> BaselineGeneration:
     """Generate text with standard Hugging Face decoding baselines.
 
-    These baselines use the same prompt set as Flatness-N but do not use N-trial
-    lookahead. They are included for thesis-level comparison, not for exhaustive
-    reproduction of every decoding paper baseline.
+    Beam search is included because it is the standard deterministic search
+    baseline that keeps multiple partial hypotheses. Unlike Flatness-N, beam
+    search scores partial sequences by cumulative model likelihood rather than
+    by next-state logit flatness.
     """
     if seed is not None:
         torch.manual_seed(seed)
@@ -63,15 +65,17 @@ def generate_baseline(
     }
 
     if method == "greedy":
-        generation_kwargs.update({"do_sample": False})
+        generation_kwargs.update({"do_sample": False, "num_beams": 1})
+    elif method == "beam":
+        generation_kwargs.update({"do_sample": False, "num_beams": num_beams, "early_stopping": True})
     elif method == "sampling":
-        generation_kwargs.update({"do_sample": True, "temperature": 1.0})
+        generation_kwargs.update({"do_sample": True, "temperature": 1.0, "top_k": 0, "top_p": 1.0})
     elif method == "temperature":
-        generation_kwargs.update({"do_sample": True, "temperature": temperature})
+        generation_kwargs.update({"do_sample": True, "temperature": temperature, "top_k": 0, "top_p": 1.0})
     elif method == "top_p":
-        generation_kwargs.update({"do_sample": True, "temperature": temperature, "top_p": top_p})
+        generation_kwargs.update({"do_sample": True, "temperature": temperature, "top_p": top_p, "top_k": 0})
     elif method == "top_k":
-        generation_kwargs.update({"do_sample": True, "temperature": temperature, "top_k": top_k})
+        generation_kwargs.update({"do_sample": True, "temperature": temperature, "top_k": top_k, "top_p": 1.0})
     else:
         raise ValueError(f"Unknown baseline method: {method}")
 
