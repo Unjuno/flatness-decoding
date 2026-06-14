@@ -32,7 +32,7 @@ If only probabilities are available, `Std(log p)` can be used because `log p_i =
 
 ## Comparison set
 
-The repository now includes a thesis-level comparison set.
+The repository includes a thesis-level comparison set.
 
 ### Standard baselines
 
@@ -70,20 +70,35 @@ PYTHONPATH=src python scripts/check_device.py
 PYTHONPATH=src python scripts/smoke_test.py
 ```
 
+Equivalent Makefile commands:
+
+```bash
+make install
+make check
+make smoke
+```
+
 ## Run the full comparison smoke pipeline
 
-This is the first command to run after cloning locally.
+This is the first full comparison command to run after cloning locally.
 
 ```bash
 PYTHONPATH=src python scripts/run_pipeline.py \
   --config configs/comparison_smoke.yaml
 ```
 
+or:
+
+```bash
+make comparison-smoke
+```
+
 This runs:
 
 1. `scripts/run_experiment_set.py`
 2. `scripts/run_evaluate.py`
-3. `scripts/plot_results.py`
+3. `scripts/build_results_table.py`
+4. `scripts/plot_results.py`
 
 Outputs:
 
@@ -91,16 +106,39 @@ Outputs:
 outputs/generations/comparison_smoke/
 outputs/token_logs/comparison_smoke/
 results/summary/comparison_smoke_metrics.csv
+results/summary/comparison_smoke_table.csv
 results/figures/comparison_smoke/
 ```
 
+## Build a main prompt subset
+
+Before the main experiment, create a fixed prompt subset:
+
+```bash
+make build-prompts
+```
+
+This writes:
+
+```text
+prompts/main_prompts.jsonl
+```
+
+The prompt file is the experimental set. Every method must use the same rows in the same order.
+
 ## Run the main comparison template
 
-Before running this, create `prompts/main_prompts.jsonl` with a fixed benchmark prompt subset.
+After `prompts/main_prompts.jsonl` exists:
 
 ```bash
 PYTHONPATH=src python scripts/run_pipeline.py \
   --config configs/comparison_main_template.yaml
+```
+
+or:
+
+```bash
+make comparison-main
 ```
 
 ## Run a single generation
@@ -129,8 +167,12 @@ The repository now contains:
 - standard baseline implementations
 - Flatness-N, Random-N, and MaxFlat-N implementations
 - comparison experiment-set configs
-- an end-to-end pipeline script
+- prompt subset builder
+- end-to-end pipeline script
+- compact result-table builder
 - basic evaluation and plotting scripts
+- minimal unit tests
+- thesis outline
 
 The next local step is to run `configs/comparison_smoke.yaml` and inspect whether:
 
