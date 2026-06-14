@@ -1,0 +1,36 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+.DS_Store
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Heavy experiment artifacts
+/data/raw/
+/data/cache/
+/outputs/generations/
+/outputs/token_logs/
+/outputs/raw_metrics/
+/models/
+/checkpoints/
+/wandb/
+/.cache/
+
+# Model/checkpoint formats
+*.pt
+*.pth
+*.bin
+*.safetensors
+*.ckpt
+*.arrow
+*.parquet
+*.jsonl.gz
+
+# Keep result summaries and figures trackable
+!/results/
+!/results/README.md
+!/results/summary/
+!/results/figures/
