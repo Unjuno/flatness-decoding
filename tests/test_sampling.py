@@ -21,6 +21,12 @@ def test_sample_candidates_shape():
     assert samples.shape == (3,)
 
 
+def test_sample_candidates_returns_cpu_tensor():
+    logits = torch.ones(5)
+    samples = sample_candidates_from_logits(logits=logits, n=3, temperature=1.0)
+    assert samples.device.type == "cpu"
+
+
 def test_sample_candidates_rejects_nonpositive_temperature():
     logits = torch.ones(5)
     try:
