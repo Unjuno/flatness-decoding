@@ -36,8 +36,18 @@ def repetition_rate(texts: list[str], n: int = 4) -> float:
 
 def continuation_from_text(text: str, prompt: str) -> str:
     """Remove a prompt prefix from a decoded full text when possible."""
-    if prompt and text.startswith(prompt):
+    if not prompt:
+        return text
+    if text.startswith(prompt):
         return text[len(prompt) :].lstrip()
+
+    # Decoding can sometimes introduce leading whitespace. Handle that without
+    # normalizing the internal content of the generated text.
+    stripped_text = text.lstrip()
+    stripped_prompt = prompt.lstrip()
+    if stripped_prompt and stripped_text.startswith(stripped_prompt):
+        return stripped_text[len(stripped_prompt) :].lstrip()
+
     return text
 
 
