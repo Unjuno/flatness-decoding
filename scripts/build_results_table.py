@@ -53,6 +53,7 @@ def main() -> None:
         "mean_min_candidate_flatness",
         "mean_max_candidate_flatness",
         "mean_selection_gain",
+        "mean_candidate_unique_count",
     ]
 
     gen = gen[[col for col in gen_cols if col in gen.columns]]
