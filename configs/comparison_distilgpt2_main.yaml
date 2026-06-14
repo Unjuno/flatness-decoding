@@ -1,0 +1,31 @@
+experiment_name: comparison_distilgpt2_main
+model_name: distilgpt2
+model_cache_dir: models/hf
+device: auto
+dtype: auto
+seeds: [0, 1, 2]
+
+generation:
+  max_new_tokens: 120
+
+prompts:
+  path: prompts/main_prompts.jsonl
+  limit: 100
+
+baselines:
+  methods: [greedy, sampling, temperature, top_p, top_k]
+  temperature: 1.2
+  top_p: 0.9
+  top_k: 50
+
+n_trial_methods:
+  methods: [random, minflat, maxflat]
+  n_values: [1, 4, 8, 16, 32]
+  proposal_temperature: 1.0
+
+output:
+  generations_dir: outputs/generations/comparison_distilgpt2_main
+  token_log_dir: outputs/token_logs/comparison_distilgpt2_main
+  summary_csv: results/summary/comparison_distilgpt2_main_metrics.csv
+  table_csv: results/summary/comparison_distilgpt2_main_table.csv
+  figures_dir: results/figures/comparison_distilgpt2_main
