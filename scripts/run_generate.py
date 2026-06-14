@@ -18,6 +18,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-new-tokens", type=int, default=100)
     parser.add_argument("--device", default="auto")
     parser.add_argument("--dtype", default="auto")
+    parser.add_argument("--model-cache-dir", default="models/hf")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--output", default=None)
     parser.add_argument("--token-log", default=None)
@@ -26,7 +27,12 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    model, tokenizer, device = load_causal_lm(args.model, args.device, args.dtype)
+    model, tokenizer, device = load_causal_lm(
+        args.model,
+        args.device,
+        args.dtype,
+        cache_dir=args.model_cache_dir,
+    )
 
     text, records = generate_flatness_controlled(
         model=model,
