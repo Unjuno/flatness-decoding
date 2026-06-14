@@ -52,6 +52,7 @@ def run_baseline_grid(cfg: dict, model, tokenizer, device, prompts: list[dict]) 
                     temperature=float(baseline_cfg.get("temperature", 1.0)),
                     top_p=float(baseline_cfg.get("top_p", 0.9)),
                     top_k=int(baseline_cfg.get("top_k", 50)),
+                    num_beams=int(baseline_cfg.get("num_beams", 4)),
                     device=device,
                     seed=seed + idx,
                 )
@@ -68,6 +69,7 @@ def run_baseline_grid(cfg: dict, model, tokenizer, device, prompts: list[dict]) 
                         "baseline_temperature": baseline_cfg.get("temperature", 1.0),
                         "top_p": baseline_cfg.get("top_p", None),
                         "top_k": baseline_cfg.get("top_k", None),
+                        "num_beams": baseline_cfg.get("num_beams", None),
                         "seed": seed,
                         "prompt": prompt,
                         "text": result.text,
@@ -132,6 +134,7 @@ def run_n_trial_grid(cfg: dict, model, tokenizer, device, prompts: list[dict]) -
                             "baseline_temperature": None,
                             "top_p": None,
                             "top_k": None,
+                            "num_beams": None,
                             "seed": seed,
                             "prompt": prompt,
                             "text": text,
