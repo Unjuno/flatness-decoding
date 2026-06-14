@@ -98,7 +98,9 @@ This runs:
 1. `scripts/run_experiment_set.py`
 2. `scripts/run_evaluate.py`
 3. `scripts/build_results_table.py`
-4. `scripts/plot_results.py`
+4. `scripts/analyze_results.py`
+5. `scripts/analyze_token_logs.py`
+6. `scripts/plot_results.py`
 
 Outputs:
 
@@ -107,7 +109,10 @@ outputs/generations/comparison_smoke/
 outputs/token_logs/comparison_smoke/
 results/summary/comparison_smoke_metrics.csv
 results/summary/comparison_smoke_table.csv
+results/summary/comparison_smoke_analysis.md
+results/summary/comparison_smoke_token_trace.csv
 results/figures/comparison_smoke/
+results/figures/comparison_smoke/token_analysis/
 ```
 
 ## Build a main prompt subset
@@ -141,6 +146,32 @@ or:
 make comparison-main
 ```
 
+## Analysis scripts
+
+The pipeline now produces automatic analysis files. You can also run them manually:
+
+```bash
+make analyze-smoke
+make token-analyze-smoke
+```
+
+The analysis focuses on:
+
+- Flatness-N vs Random-N at the same N
+- N dependence of chosen flatness and selection gain
+- correlation between flatness and diversity/repetition/runtime
+- token-level flatness traces over generation steps
+
+## Dataset and metric references
+
+See:
+
+```text
+notes/datasets_and_metrics.md
+```
+
+This note records how E2E NLG, WritingPrompts/narrative generation, WikiText prompts, MAUVE, and standard NLG metrics may be used or referenced.
+
 ## Run a single generation
 
 ```bash
@@ -164,12 +195,14 @@ PYTHONPATH=src python scripts/run_generate.py \
 The repository now contains:
 
 - research plan and related-work notes
+- dataset/metric reference plan
 - standard baseline implementations
 - Flatness-N, Random-N, and MaxFlat-N implementations
 - comparison experiment-set configs
 - prompt subset builder
 - end-to-end pipeline script
 - compact result-table builder
+- automatic analysis scripts
 - basic evaluation and plotting scripts
 - minimal unit tests
 - thesis outline
