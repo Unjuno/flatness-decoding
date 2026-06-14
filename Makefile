@@ -1,4 +1,4 @@
-.PHONY: install install-eval download-models check smoke comparison-smoke build-prompts comparison-main comparison-distilgpt2-main eval-smoke table-smoke extended-smoke ppl-smoke trends-smoke metric-suite-smoke analyze-smoke token-analyze-smoke plot-smoke paper-check paper-check-final export-smoke-table test dvc-init-local
+.PHONY: install install-eval download-models check smoke comparison-smoke comparison-smoke-parallel build-prompts comparison-main comparison-main-parallel comparison-distilgpt2-main comparison-distilgpt2-main-parallel eval-smoke table-smoke extended-smoke ppl-smoke trends-smoke metric-suite-smoke analyze-smoke token-analyze-smoke plot-smoke paper-check paper-check-final export-smoke-table test dvc-init-local
 
 PYTHONPATH := src
 
@@ -20,6 +20,10 @@ smoke:
 comparison-smoke:
 	PYTHONPATH=$(PYTHONPATH) python scripts/run_pipeline.py --config configs/comparison_smoke.yaml
 
+comparison-smoke-parallel:
+	PYTHONPATH=$(PYTHONPATH) python scripts/run_experiment_parallel.py --config configs/comparison_smoke.yaml --num-shards 2 --workers 2
+	$(MAKE) eval-smoke table-smoke analyze-smoke token-analyze-smoke plot-smoke
+
 build-prompts:
 	PYTHONPATH=$(PYTHONPATH) python scripts/build_prompt_subset.py \
 		--dataset wikitext \
@@ -35,8 +39,40 @@ build-prompts:
 comparison-main:
 	PYTHONPATH=$(PYTHONPATH) python scripts/run_pipeline.py --config configs/comparison_main_template.yaml
 
+comparison-main-parallel:
+	PYTHONPATH=$(PYTHONPATH) python scripts/run_experiment_parallel.py --config configs/comparison_main_template.yaml --num-shards 4 --workers 2
+	PYTHONPATH=$(PYTHONPATH) python scripts/run_evaluate.py \
+		--input-dir outputs/generations/comparison_main \
+		--token-log-dir outputs/token_logs/comparison_main \
+		--output results/summary/comparison_main_metrics.csv
+	PYTHONPATH=$(PYTHONPATH) python scripts/build_results_table.py \
+		--metrics results/summary/comparison_main_metrics.csv \
+		--output results/summary/comparison_main_table.csv
+	PYTHONPATH=$(PYTHONPATH) python scripts/analyze_results.py \
+		--table results/summary/comparison_main_table.csv \
+		--output results/summary/comparison_main_analysis.md
+	PYTHONPATH=$(PYTHONPATH) python scripts/plot_results.py \
+		--input results/summary/comparison_main_metrics.csv \
+		--output-dir results/figures/comparison_main
+
 comparison-distilgpt2-main:
 	PYTHONPATH=$(PYTHONPATH) python scripts/run_pipeline.py --config configs/comparison_distilgpt2_main.yaml
+
+comparison-distilgpt2-main-parallel:
+	PYTHONPATH=$(PYTHONPATH) python scripts/run_experiment_parallel.py --config configs/comparison_distilgpt2_main.yaml --num-shards 4 --workers 2
+	PYTHONPATH=$(PYTHONPATH) python scripts/run_evaluate.py \
+		--input-dir outputs/generations/comparison_distilgpt2_main \
+		--token-log-dir outputs/token_logs/comparison_distilgpt2_main \
+		--output results/summary/comparison_distilgpt2_main_metrics.csv
+	PYTHONPATH=$(PYTHONPATH) python scripts/build_results_table.py \
+		--metrics results/summary/comparison_distilgpt2_main_metrics.csv \
+		--output results/summary/comparison_distilgpt2_main_table.csv
+	PYTHONPATH=$(PYTHONPATH) python scripts/analyze_results.py \
+		--table results/summary/comparison_distilgpt2_main_table.csv \
+		--output results/summary/comparison_distilgpt2_main_analysis.md
+	PYTHONPATH=$(PYTHONPATH) python scripts/plot_results.py \
+		--input results/summary/comparison_distilgpt2_main_metrics.csv \
+		--output-dir results/figures/comparison_distilgpt2_main
 
 eval-smoke:
 	PYTHONPATH=$(PYTHONPATH) python scripts/run_evaluate.py \
