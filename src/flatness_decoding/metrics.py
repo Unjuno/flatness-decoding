@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections import Counter
 from pathlib import Path
+from typing import Any
 
 from .io_utils import read_jsonl
 
@@ -33,19 +34,52 @@ def repetition_rate(texts: list[str], n: int = 4) -> float:
     return repeated / len(all_ngrams)
 
 
+def mean_or_none(values: list[float]) -> float | None:
+    if not values:
+        return None
+    return sum(values) / len(values)
+
+
 def mean_text_length(texts: list[str]) -> float:
     if not texts:
         return 0.0
     return sum(len(text.split()) for text in texts) / len(texts)
 
 
-def summarize_generation_file(path: str | Path) -> dict[str, float | int | str]:
+def first_metadata(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    if not rows:
+        return {}
+    first = rows[0]
+    keys = [
+        "experiment_name",
+        "model",
+        "method",
+        "method_family",
+        "n_trials",
+        "proposal_temperature",
+        "baseline_temperature",
+        "top_p",
+        "top_k",
+        "seed",
+    ]
+    return {key: first.get(key) for key in keys if key in first}
+
+
+def summarize_generation_file(path: str | Path) -> dict[str, float | int | str | None]:
     rows = read_jsonl(path)
     texts = [str(row.get("text", "")) for row in rows]
+    output_tokens = [float(row["num_output_tokens"]) for row in rows if row.get("num_output_tokens") is not None]
+    runtimes = [float(row["runtime_seconds"]) for row in rows if row.get("runtime_seconds") is not None]
+    tps = [float(row["tokens_per_second"]) for row in rows if row.get("tokens_per_second") is not None]
+
     return {
         "file": str(path),
+        **first_metadata(rows),
         "num_outputs": len(texts),
         "mean_words": mean_text_length(texts),
+        "mean_output_tokens": mean_or_none(output_tokens),
+        "mean_runtime_seconds": mean_or_none(runtimes),
+        "mean_tokens_per_second": mean_or_none(tps),
         "distinct_1": distinct_n(texts, 1),
         "distinct_2": distinct_n(texts, 2),
         "distinct_3": distinct_n(texts, 3),
@@ -53,21 +87,32 @@ def summarize_generation_file(path: str | Path) -> dict[str, float | int | str]:
     }
 
 
-def summarize_token_log_file(path: str | Path) -> dict[str, float | int | str]:
+def summarize_token_log_file(path: str | Path) -> dict[str, float | int | str | None]:
     rows = read_jsonl(path)
     if not rows:
         return {
             "file": str(path),
             "num_steps": 0,
             "mean_chosen_flatness": 0.0,
+            "mean_candidate_flatness": 0.0,
+            "mean_min_candidate_flatness": 0.0,
+            "mean_max_candidate_flatness": 0.0,
             "mean_selection_gain": 0.0,
         }
 
     chosen = [float(row.get("chosen_flatness", 0.0)) for row in rows]
+    mean_candidate = [float(row.get("mean_candidate_flatness", 0.0)) for row in rows]
+    min_candidate = [float(row.get("min_candidate_flatness", 0.0)) for row in rows]
+    max_candidate = [float(row.get("max_candidate_flatness", 0.0)) for row in rows]
     gains = [float(row.get("selection_gain", 0.0)) for row in rows]
+
     return {
         "file": str(path),
+        **first_metadata(rows),
         "num_steps": len(rows),
-        "mean_chosen_flatness": sum(chosen) / len(chosen),
-        "mean_selection_gain": sum(gains) / len(gains),
+        "mean_chosen_flatness": mean_or_none(chosen),
+        "mean_candidate_flatness": mean_or_none(mean_candidate),
+        "mean_min_candidate_flatness": mean_or_none(min_candidate),
+        "mean_max_candidate_flatness": mean_or_none(max_candidate),
+        "mean_selection_gain": mean_or_none(gains),
     }
