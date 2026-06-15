@@ -23,6 +23,9 @@ n_trial_methods:
   methods: [random, minflat, maxflat]
   n_values: [1, 4, 8, 16, 32]
   proposal_temperature: 1.0
+  # Micro-batch candidate lookahead evaluation to reduce peak memory on MPS.
+  # Increase to 2/4 only after confirming memory pressure stays low.
+  candidate_eval_batch_size: 1
 
 output:
   generations_dir: outputs/generations/comparison_distilgpt2_main
