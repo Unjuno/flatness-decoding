@@ -142,6 +142,9 @@ def run_n_trial_grid(
     n_values = ntrial_cfg.get("n_values", [1, 4, 8, 16])
     seeds = cfg.get("seeds", [0])
     proposal_temperature = float(ntrial_cfg.get("proposal_temperature", 1.0))
+    candidate_eval_batch_size = ntrial_cfg.get("candidate_eval_batch_size")
+    if candidate_eval_batch_size is not None:
+        candidate_eval_batch_size = int(candidate_eval_batch_size)
     suffix = shard_suffix(num_shards, shard_index)
 
     for method in methods:
@@ -166,6 +169,7 @@ def run_n_trial_grid(
                         method=method,
                         device=device,
                         seed=actual_seed,
+                        candidate_eval_batch_size=candidate_eval_batch_size,
                     )
                     elapsed = time.perf_counter() - started
                     num_output_tokens = len(records)
@@ -182,6 +186,7 @@ def run_n_trial_grid(
                             "method_family": "n_trial",
                             "n_trials": int(n_trials),
                             "proposal_temperature": proposal_temperature,
+                            "candidate_eval_batch_size": candidate_eval_batch_size,
                             "baseline_temperature": None,
                             "top_p": None,
                             "top_k": None,
@@ -209,6 +214,7 @@ def run_n_trial_grid(
                                 "seed": seed,
                                 "actual_seed": actual_seed,
                                 "model": model_name,
+                                "candidate_eval_batch_size": candidate_eval_batch_size,
                             }
                         )
                         token_rows.append(record_row)
