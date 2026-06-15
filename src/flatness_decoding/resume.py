@@ -101,6 +101,7 @@ def ntrial_output_complete(
     num_shards: int,
     candidate_eval_batch_size: int | None,
     inference_mode: bool,
+    use_kv_cache_lookahead: bool = False,
 ) -> bool:
     rows = safe_read_jsonl(generation_path)
     token_rows = safe_read_jsonl(token_log_path)
@@ -123,7 +124,7 @@ def ntrial_output_complete(
     for row in rows:
         if row.get("candidate_eval_batch_size") != candidate_eval_batch_size:
             return False
-        if row.get("use_kv_cache_lookahead") is not True:
+        if bool(row.get("use_kv_cache_lookahead", False)) != bool(use_kv_cache_lookahead):
             return False
         if row.get("proposal_sampling_device") != "cpu":
             return False
@@ -151,6 +152,8 @@ def ntrial_output_complete(
         if int(token_row.get("num_shards", -1)) != int(num_shards):
             return False
         if token_row.get("candidate_eval_batch_size") != candidate_eval_batch_size:
+            return False
+        if bool(token_row.get("use_kv_cache_lookahead", False)) != bool(use_kv_cache_lookahead):
             return False
         if token_row.get("implementation_profile") != IMPLEMENTATION_PROFILE:
             return False
