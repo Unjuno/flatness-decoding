@@ -23,6 +23,16 @@ n_trial_methods:
   methods: [random, minflat, maxflat]
   n_values: [1, 4, 8]
   proposal_temperature: 1.0
+  candidate_eval_batch_size: 1
+
+runtime:
+  inference_mode: false
+  resume:
+    skip_complete: true
+  cleanup:
+    device_cache_after_prompt: false
+    device_cache_after_group: true
+    python_gc_after_group: false
 
 output:
   generations_dir: outputs/generations/comparison_smoke
