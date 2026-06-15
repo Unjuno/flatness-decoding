@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import argparse
 import time
+from contextlib import nullcontext
 from pathlib import Path
 
+import torch
 import yaml
 from tqdm import tqdm
 
@@ -13,6 +15,7 @@ from flatness_decoding.io_utils import read_jsonl, write_jsonl
 from flatness_decoding.memory import cleanup_config, cleanup_device_cache
 from flatness_decoding.metrics import continuation_from_text
 from flatness_decoding.model_io import load_causal_lm
+from flatness_decoding.resume import baseline_output_complete, ntrial_output_complete, resume_config
 
 
 def parse_args() -> argparse.Namespace:
@@ -20,6 +23,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--config", required=True, help="YAML experiment-set config.")
     parser.add_argument("--num-shards", type=int, default=1, help="Split prompts into this many shards.")
     parser.add_argument("--shard-index", type=int, default=0, help="Run only this zero-based prompt shard.")
+    parser.add_argument(
+        "--candidate-eval-batch-size",
+        type=int,
+        default=None,
+        help="Override n_trial_methods.candidate_eval_batch_size for this run.",
+    )
+    parser.add_argument("--inference-mode", action="store_true", help="Run generation calls inside torch.inference_mode().")
+    parser.add_argument("--resume", action="store_true", help="Skip complete output groups when possible.")
+    parser.add_argument("--no-resume", action="store_true", help="Disable complete-output skipping even if config enables it.")
     return parser.parse_args()
 
 
@@ -28,10 +40,42 @@ def load_config(path: str | Path) -> dict:
         return yaml.safe_load(f)
 
 
+def apply_overrides(cfg: dict, args: argparse.Namespace) -> dict:
+    if args.candidate_eval_batch_size is not None:
+        cfg.setdefault("n_trial_methods", {})["candidate_eval_batch_size"] = int(args.candidate_eval_batch_size)
+    if args.inference_mode:
+        cfg.setdefault("runtime", {})["inference_mode"] = True
+    if args.resume and args.no_resume:
+        raise SystemExit("--resume and --no-resume are mutually exclusive")
+    if args.resume:
+        cfg.setdefault("runtime", {}).setdefault("resume", {})["skip_complete"] = True
+    if args.no_resume:
+        cfg.setdefault("runtime", {}).setdefault("resume", {})["skip_complete"] = False
+    return cfg
+
+
+def inference_context(cfg: dict):
+    runtime_cfg = cfg.get("runtime", {}) or {}
+    if bool(runtime_cfg.get("inference_mode", False)):
+        return torch.inference_mode()
+    return nullcontext()
+
+
 def shard_suffix(num_shards: int, shard_index: int) -> str:
     if num_shards <= 1:
         return ""
     return f"_shard={shard_index}-of-{num_shards}"
+
+
+def baseline_stem(exp_name: str, model_name: str, method: str, seed: int, suffix: str) -> str:
+    return f"experiment={exp_name}_model={model_name.replace('/', '__')}_method={method}_seed={seed}{suffix}"
+
+
+def ntrial_stem(exp_name: str, model_name: str, method: str, n_trials: int, proposal_temperature: float, seed: int, suffix: str) -> str:
+    return (
+        f"experiment={exp_name}_model={model_name.replace('/', '__')}_"
+        f"method={method}_n={n_trials}_temp={proposal_temperature}_seed={seed}{suffix}"
+    )
 
 
 def select_prompt_shard(prompts: list[dict], num_shards: int, shard_index: int) -> list[dict]:
@@ -58,6 +102,8 @@ def run_baseline_grid(
     gen_cfg = cfg["generation"]
     baseline_cfg = cfg.get("baselines", {})
     cleanup_cfg = cleanup_config(cfg)
+    resume_cfg = resume_config(cfg)
+    runtime_cfg = cfg.get("runtime", {}) or {}
     output_dir = Path(cfg["output"]["generations_dir"])
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -67,6 +113,19 @@ def run_baseline_grid(
 
     for method in methods:
         for seed in seeds:
+            stem = baseline_stem(exp_name, model_name, method, seed, suffix)
+            output_path = output_dir / f"{stem}.jsonl"
+            if resume_cfg["skip_complete"] and baseline_output_complete(
+                output_path,
+                expected_rows=len(prompts),
+                method=method,
+                seed=seed,
+                shard_index=shard_index,
+                num_shards=num_shards,
+            ):
+                print(f"skip complete baseline group: {output_path}")
+                continue
+
             rows: list[dict] = []
             desc = f"baseline {method} seed={seed}{suffix}"
             for local_idx, row in enumerate(tqdm(prompts, desc=desc)):
@@ -75,19 +134,20 @@ def run_baseline_grid(
                 prompt = str(row["prompt"])
                 actual_seed = seed + int(original_prompt_index)
                 started = time.perf_counter()
-                result = generate_baseline(
-                    model=model,
-                    tokenizer=tokenizer,
-                    prompt=prompt,
-                    method=method,
-                    max_new_tokens=int(gen_cfg.get("max_new_tokens", 100)),
-                    temperature=float(baseline_cfg.get("temperature", 1.0)),
-                    top_p=float(baseline_cfg.get("top_p", 0.9)),
-                    top_k=int(baseline_cfg.get("top_k", 50)),
-                    num_beams=int(baseline_cfg.get("num_beams", 4)),
-                    device=device,
-                    seed=actual_seed,
-                )
+                with inference_context(cfg):
+                    result = generate_baseline(
+                        model=model,
+                        tokenizer=tokenizer,
+                        prompt=prompt,
+                        method=method,
+                        max_new_tokens=int(gen_cfg.get("max_new_tokens", 100)),
+                        temperature=float(baseline_cfg.get("temperature", 1.0)),
+                        top_p=float(baseline_cfg.get("top_p", 0.9)),
+                        top_k=int(baseline_cfg.get("top_k", 50)),
+                        num_beams=int(baseline_cfg.get("num_beams", 4)),
+                        device=device,
+                        seed=actual_seed,
+                    )
                 elapsed = time.perf_counter() - started
                 continuation_text = continuation_from_text(result.text, prompt)
                 rows.append(
@@ -106,6 +166,8 @@ def run_baseline_grid(
                         "use_kv_cache_lookahead": None,
                         "proposal_sampling_device": None,
                         "selection_device": None,
+                        "inference_mode": bool(runtime_cfg.get("inference_mode", False)),
+                        "resume_skip_complete": resume_cfg["skip_complete"],
                         "cleanup_device_cache_after_prompt": cleanup_cfg["device_cache_after_prompt"],
                         "cleanup_device_cache_after_group": cleanup_cfg["device_cache_after_group"],
                         "baseline_temperature": baseline_cfg.get("temperature", 1.0),
@@ -126,8 +188,7 @@ def run_baseline_grid(
                 if cleanup_cfg["device_cache_after_prompt"]:
                     cleanup_device_cache(device)
 
-            stem = f"experiment={exp_name}_model={model_name.replace('/', '__')}_method={method}_seed={seed}{suffix}"
-            write_jsonl(output_dir / f"{stem}.jsonl", rows)
+            write_jsonl(output_path, rows)
             if cleanup_cfg["device_cache_after_group"]:
                 cleanup_device_cache(device, collect_python=cleanup_cfg["python_gc_after_group"])
 
@@ -146,6 +207,8 @@ def run_n_trial_grid(
     gen_cfg = cfg["generation"]
     ntrial_cfg = cfg.get("n_trial_methods", {})
     cleanup_cfg = cleanup_config(cfg)
+    resume_cfg = resume_config(cfg)
+    runtime_cfg = cfg.get("runtime", {}) or {}
     output_dir = Path(cfg["output"]["generations_dir"])
     token_log_dir = Path(cfg["output"]["token_log_dir"])
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -166,6 +229,22 @@ def run_n_trial_grid(
     for method in methods:
         for n_trials in n_values:
             for seed in seeds:
+                stem = ntrial_stem(exp_name, model_name, method, int(n_trials), proposal_temperature, seed, suffix)
+                output_path = output_dir / f"{stem}.jsonl"
+                token_log_path = token_log_dir / f"{stem}.tokenlog.jsonl"
+                if resume_cfg["skip_complete"] and ntrial_output_complete(
+                    output_path,
+                    token_log_path,
+                    expected_rows=len(prompts),
+                    method=method,
+                    n_trials=int(n_trials),
+                    seed=seed,
+                    shard_index=shard_index,
+                    num_shards=num_shards,
+                ):
+                    print(f"skip complete n-trial group: {output_path}")
+                    continue
+
                 rows: list[dict] = []
                 token_rows: list[dict] = []
                 desc = f"n-trial {method} N={n_trials} seed={seed}{suffix}"
@@ -175,18 +254,19 @@ def run_n_trial_grid(
                     prompt = str(row["prompt"])
                     actual_seed = seed + int(original_prompt_index)
                     started = time.perf_counter()
-                    text, records = generate_flatness_controlled(
-                        model=model,
-                        tokenizer=tokenizer,
-                        prompt=prompt,
-                        max_new_tokens=int(gen_cfg.get("max_new_tokens", 100)),
-                        n_trials=int(n_trials),
-                        proposal_temperature=proposal_temperature,
-                        method=method,
-                        device=device,
-                        seed=actual_seed,
-                        candidate_eval_batch_size=candidate_eval_batch_size,
-                    )
+                    with inference_context(cfg):
+                        text, records = generate_flatness_controlled(
+                            model=model,
+                            tokenizer=tokenizer,
+                            prompt=prompt,
+                            max_new_tokens=int(gen_cfg.get("max_new_tokens", 100)),
+                            n_trials=int(n_trials),
+                            proposal_temperature=proposal_temperature,
+                            method=method,
+                            device=device,
+                            seed=actual_seed,
+                            candidate_eval_batch_size=candidate_eval_batch_size,
+                        )
                     elapsed = time.perf_counter() - started
                     num_output_tokens = len(records)
                     continuation_text = continuation_from_text(text, prompt)
@@ -206,6 +286,8 @@ def run_n_trial_grid(
                             "use_kv_cache_lookahead": use_kv_cache_lookahead,
                             "proposal_sampling_device": proposal_sampling_device,
                             "selection_device": selection_device,
+                            "inference_mode": bool(runtime_cfg.get("inference_mode", False)),
+                            "resume_skip_complete": resume_cfg["skip_complete"],
                             "cleanup_device_cache_after_prompt": cleanup_cfg["device_cache_after_prompt"],
                             "cleanup_device_cache_after_group": cleanup_cfg["device_cache_after_group"],
                             "baseline_temperature": None,
@@ -239,6 +321,8 @@ def run_n_trial_grid(
                                 "use_kv_cache_lookahead": use_kv_cache_lookahead,
                                 "proposal_sampling_device": proposal_sampling_device,
                                 "selection_device": selection_device,
+                                "inference_mode": bool(runtime_cfg.get("inference_mode", False)),
+                                "resume_skip_complete": resume_cfg["skip_complete"],
                                 "cleanup_device_cache_after_prompt": cleanup_cfg["device_cache_after_prompt"],
                                 "cleanup_device_cache_after_group": cleanup_cfg["device_cache_after_group"],
                             }
@@ -247,19 +331,15 @@ def run_n_trial_grid(
                     if cleanup_cfg["device_cache_after_prompt"]:
                         cleanup_device_cache(device)
 
-                stem = (
-                    f"experiment={exp_name}_model={model_name.replace('/', '__')}_"
-                    f"method={method}_n={n_trials}_temp={proposal_temperature}_seed={seed}{suffix}"
-                )
-                write_jsonl(output_dir / f"{stem}.jsonl", rows)
-                write_jsonl(token_log_dir / f"{stem}.tokenlog.jsonl", token_rows)
+                write_jsonl(output_path, rows)
+                write_jsonl(token_log_path, token_rows)
                 if cleanup_cfg["device_cache_after_group"]:
                     cleanup_device_cache(device, collect_python=cleanup_cfg["python_gc_after_group"])
 
 
 def main() -> None:
     args = parse_args()
-    cfg = load_config(args.config)
+    cfg = apply_overrides(load_config(args.config), args)
 
     prompts = read_jsonl(cfg["prompts"]["path"])
     prompts = [{**row, "original_prompt_index": idx} for idx, row in enumerate(prompts)]
