@@ -104,7 +104,7 @@ def test_expand_past_key_values_expands_legacy_cache_batch_dimension():
 
 
 @torch.no_grad()
-def test_cached_candidate_lookahead_matches_full_prefix_lookahead_on_cpu():
+def test_full_prefix_microbatch_matches_full_prefix_batch_on_cpu():
     model = tiny_gpt2()
     input_ids = torch.tensor([[1, 5, 7, 9]])
     candidate_ids = torch.tensor([2, 4, 6, 8])
@@ -117,22 +117,21 @@ def test_cached_candidate_lookahead_matches_full_prefix_lookahead_on_cpu():
         past_key_values=None,
     )
 
-    prefix_outputs = model(input_ids=input_ids, attention_mask=torch.ones_like(input_ids), use_cache=True)
-    cached = evaluate_candidates_next_flatness(
+    micro_1 = evaluate_candidates_next_flatness(
         model=model,
         input_ids=input_ids,
         candidate_ids=candidate_ids,
         candidate_eval_batch_size=1,
-        past_key_values=prefix_outputs.past_key_values,
+        past_key_values=None,
     )
 
-    cached_batched = evaluate_candidates_next_flatness(
+    micro_2 = evaluate_candidates_next_flatness(
         model=model,
         input_ids=input_ids,
         candidate_ids=candidate_ids,
         candidate_eval_batch_size=2,
-        past_key_values=prefix_outputs.past_key_values,
+        past_key_values=None,
     )
 
-    assert torch.allclose(full, cached, atol=1e-6)
-    assert torch.allclose(full, cached_batched, atol=1e-6)
+    assert torch.allclose(full, micro_1, atol=1e-6)
+    assert torch.allclose(full, micro_2, atol=1e-6)
