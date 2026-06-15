@@ -27,6 +27,10 @@ def parse_args() -> argparse.Namespace:
             "Use only for CUDA multi-GPU runs. Omit for auto/default device behavior."
         ),
     )
+    parser.add_argument("--candidate-eval-batch-size", type=int, default=None, help="Override candidate lookahead micro-batch size.")
+    parser.add_argument("--inference-mode", action="store_true", help="Run shard generation calls inside torch.inference_mode().")
+    parser.add_argument("--resume", action="store_true", help="Skip complete output groups when possible.")
+    parser.add_argument("--no-resume", action="store_true", help="Disable complete-output skipping even if config enables it.")
     parser.add_argument("--python", default=sys.executable)
     parser.add_argument("--dry-run", action="store_true", help="Print resolved plan without running shards.")
     return parser.parse_args()
@@ -48,6 +52,10 @@ def run_shard(
     num_shards: int,
     devices: list[str] | None,
     shard_index: int,
+    candidate_eval_batch_size: int | None,
+    inference_mode: bool,
+    resume: bool,
+    no_resume: bool,
 ) -> tuple[int, int]:
     env = os.environ.copy()
     env["PYTHONPATH"] = "src" + os.pathsep + env.get("PYTHONPATH", "")
@@ -64,6 +72,15 @@ def run_shard(
         "--shard-index",
         str(shard_index),
     ]
+    if candidate_eval_batch_size is not None:
+        cmd.extend(["--candidate-eval-batch-size", str(candidate_eval_batch_size)])
+    if inference_mode:
+        cmd.append("--inference-mode")
+    if resume:
+        cmd.append("--resume")
+    if no_resume:
+        cmd.append("--no-resume")
+
     print("+ " + " ".join(cmd))
     completed = subprocess.run(cmd, env=env)
     return shard_index, completed.returncode
@@ -73,6 +90,8 @@ def main() -> None:
     args = parse_args()
     if not Path(args.config).exists():
         raise SystemExit(f"config not found: {args.config}")
+    if args.resume and args.no_resume:
+        raise SystemExit("--resume and --no-resume are mutually exclusive")
 
     plan = detect_parallel_plan(
         requested_num_shards=args.num_shards,
@@ -91,6 +110,10 @@ def main() -> None:
     print(f"workers: {workers}")
     print(f"num_shards: {num_shards}")
     print(f"devices: {devices}")
+    print(f"candidate_eval_batch_size_override: {args.candidate_eval_batch_size}")
+    print(f"inference_mode_override: {args.inference_mode}")
+    print(f"resume_override: {args.resume}")
+    print(f"no_resume_override: {args.no_resume}")
     print(f"caution: {plan.caution}")
 
     if prompt_count == 0:
@@ -102,7 +125,18 @@ def main() -> None:
     failed: list[tuple[int, int]] = []
     with ThreadPoolExecutor(max_workers=workers) as executor:
         futures = [
-            executor.submit(run_shard, args.python, args.config, num_shards, devices, shard_idx)
+            executor.submit(
+                run_shard,
+                args.python,
+                args.config,
+                num_shards,
+                devices,
+                shard_idx,
+                args.candidate_eval_batch_size,
+                args.inference_mode,
+                args.resume,
+                args.no_resume,
+            )
             for shard_idx in range(num_shards)
         ]
         for future in as_completed(futures):
