@@ -28,6 +28,9 @@ n_trial_methods:
   candidate_eval_batch_size: 1
 
 runtime:
+  inference_mode: false
+  resume:
+    skip_complete: true
   cleanup:
     # Keep false by default to avoid per-prompt overhead; enable only if MPS
     # memory pressure still grows after KV-cache lookahead and micro-batching.
