@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from .implementation import IMPLEMENTATION_PROFILE
 from .io_utils import read_jsonl
 
 
@@ -16,6 +17,18 @@ def safe_read_jsonl(path: str | Path) -> list[dict[str, Any]] | None:
         return None
 
 
+def row_matches_runtime_metadata(
+    row: dict[str, Any],
+    *,
+    inference_mode: bool,
+) -> bool:
+    if row.get("implementation_profile") != IMPLEMENTATION_PROFILE:
+        return False
+    if bool(row.get("inference_mode", False)) != bool(inference_mode):
+        return False
+    return True
+
+
 def rows_match_common_fields(
     rows: list[dict[str, Any]],
     *,
@@ -24,6 +37,7 @@ def rows_match_common_fields(
     seed: int,
     shard_index: int,
     num_shards: int,
+    inference_mode: bool,
 ) -> bool:
     if len(rows) != expected_rows:
         return False
@@ -44,6 +58,8 @@ def rows_match_common_fields(
             return False
         if row.get("num_output_tokens") is None:
             return False
+        if not row_matches_runtime_metadata(row, inference_mode=inference_mode):
+            return False
     return True
 
 
@@ -55,6 +71,7 @@ def baseline_output_complete(
     seed: int,
     shard_index: int,
     num_shards: int,
+    inference_mode: bool,
 ) -> bool:
     rows = safe_read_jsonl(path)
     if rows is None:
@@ -66,6 +83,7 @@ def baseline_output_complete(
         seed=seed,
         shard_index=shard_index,
         num_shards=num_shards,
+        inference_mode=inference_mode,
     ):
         return False
     return all(row.get("method_family") == "baseline" for row in rows)
@@ -81,6 +99,8 @@ def ntrial_output_complete(
     seed: int,
     shard_index: int,
     num_shards: int,
+    candidate_eval_batch_size: int | None,
+    inference_mode: bool,
 ) -> bool:
     rows = safe_read_jsonl(generation_path)
     token_rows = safe_read_jsonl(token_log_path)
@@ -93,12 +113,22 @@ def ntrial_output_complete(
         seed=seed,
         shard_index=shard_index,
         num_shards=num_shards,
+        inference_mode=inference_mode,
     ):
         return False
     if not all(row.get("method_family") == "n_trial" for row in rows):
         return False
     if not all(int(row.get("n_trials", -1)) == int(n_trials) for row in rows):
         return False
+    for row in rows:
+        if row.get("candidate_eval_batch_size") != candidate_eval_batch_size:
+            return False
+        if row.get("use_kv_cache_lookahead") is not True:
+            return False
+        if row.get("proposal_sampling_device") != "cpu":
+            return False
+        if row.get("selection_device") != "cpu":
+            return False
 
     expected_token_rows = 0
     for row in rows:
@@ -119,6 +149,12 @@ def ntrial_output_complete(
         if int(token_row.get("shard_index", -1)) != int(shard_index):
             return False
         if int(token_row.get("num_shards", -1)) != int(num_shards):
+            return False
+        if token_row.get("candidate_eval_batch_size") != candidate_eval_batch_size:
+            return False
+        if token_row.get("implementation_profile") != IMPLEMENTATION_PROFILE:
+            return False
+        if bool(token_row.get("inference_mode", False)) != bool(inference_mode):
             return False
         if token_row.get("candidate_ids") is None:
             return False
