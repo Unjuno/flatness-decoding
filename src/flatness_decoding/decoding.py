@@ -43,15 +43,12 @@ def next_logits(model, input_ids: torch.Tensor) -> torch.Tensor:
 
 
 @torch.no_grad()
-def evaluate_candidates_next_flatness(
+def evaluate_candidate_batch_next_flatness(
     model,
     input_ids: torch.Tensor,
     candidate_ids: torch.Tensor,
 ) -> torch.Tensor:
-    """Evaluate next-state logit flatness for each candidate.
-
-    The candidates are evaluated in one batch for speed.
-    """
+    """Evaluate next-state logit flatness for one candidate batch."""
     if input_ids.dim() != 2 or input_ids.shape[0] != 1:
         raise ValueError("input_ids must have shape [1, seq_len]")
     if candidate_ids.dim() != 1:
@@ -65,6 +62,30 @@ def evaluate_candidates_next_flatness(
     outputs = model(input_ids=appended)
     logits_next = outputs.logits[:, -1, :]
     return flatness_std_from_logits(logits_next)
+
+
+@torch.no_grad()
+def evaluate_candidates_next_flatness(
+    model,
+    input_ids: torch.Tensor,
+    candidate_ids: torch.Tensor,
+    candidate_eval_batch_size: int | None = None,
+) -> torch.Tensor:
+    """Evaluate next-state logit flatness for each candidate.
+
+    The default evaluates all candidates in one batch. Passing
+    `candidate_eval_batch_size` micro-batches the lookahead forward passes to
+    lower peak memory, which is important on Apple MPS and for large N.
+    """
+    if candidate_eval_batch_size is None or candidate_eval_batch_size <= 0:
+        candidate_eval_batch_size = int(candidate_ids.shape[0])
+
+    chunks: list[torch.Tensor] = []
+    for start in range(0, int(candidate_ids.shape[0]), candidate_eval_batch_size):
+        end = start + candidate_eval_batch_size
+        chunk = candidate_ids[start:end]
+        chunks.append(evaluate_candidate_batch_next_flatness(model, input_ids, chunk))
+    return torch.cat(chunks, dim=0)
 
 
 def choose_candidate(
@@ -115,6 +136,7 @@ def generate_flatness_controlled(
     method: DecodeMode = "minflat",
     device: torch.device | None = None,
     seed: int | None = None,
+    candidate_eval_batch_size: int | None = None,
 ) -> tuple[str, list[StepRecord]]:
     """Generate text with Random-N, MinFlat-N, or MaxFlat-N decoding.
 
@@ -148,6 +170,7 @@ def generate_flatness_controlled(
             model=model,
             input_ids=input_ids,
             candidate_ids=candidate_ids,
+            candidate_eval_batch_size=candidate_eval_batch_size,
         )
 
         chosen_index, chosen_id = choose_candidate(
@@ -180,5 +203,5 @@ def generate_flatness_controlled(
         if tokenizer.eos_token_id is not None and chosen_id == tokenizer.eos_token_id:
             break
 
-    text = tokenizer.decode(input_ids[0], skip_special_tokens=True)
+    text = tokenizer.decode(input_ids[0].detach().cpu().tolist(), skip_special_tokens=True)
     return text, records
