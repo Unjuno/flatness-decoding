@@ -11,6 +11,7 @@ from tqdm import tqdm
 
 from flatness_decoding.baselines import generate_baseline
 from flatness_decoding.decoding import generate_flatness_controlled
+from flatness_decoding.implementation import IMPLEMENTATION_PROFILE
 from flatness_decoding.io_utils import read_jsonl, write_jsonl
 from flatness_decoding.memory import cleanup_config, cleanup_device_cache
 from flatness_decoding.metrics import continuation_from_text
@@ -61,6 +62,10 @@ def inference_context(cfg: dict):
     return nullcontext()
 
 
+def inference_mode_enabled(cfg: dict) -> bool:
+    return bool((cfg.get("runtime", {}) or {}).get("inference_mode", False))
+
+
 def shard_suffix(num_shards: int, shard_index: int) -> str:
     if num_shards <= 1:
         return ""
@@ -104,6 +109,7 @@ def run_baseline_grid(
     cleanup_cfg = cleanup_config(cfg)
     resume_cfg = resume_config(cfg)
     runtime_cfg = cfg.get("runtime", {}) or {}
+    inference_mode = inference_mode_enabled(cfg)
     output_dir = Path(cfg["output"]["generations_dir"])
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -122,6 +128,7 @@ def run_baseline_grid(
                 seed=seed,
                 shard_index=shard_index,
                 num_shards=num_shards,
+                inference_mode=inference_mode,
             ):
                 print(f"skip complete baseline group: {output_path}")
                 continue
@@ -152,6 +159,7 @@ def run_baseline_grid(
                 continuation_text = continuation_from_text(result.text, prompt)
                 rows.append(
                     {
+                        "implementation_profile": IMPLEMENTATION_PROFILE,
                         "experiment_name": exp_name,
                         "prompt_id": prompt_id,
                         "prompt_index": original_prompt_index,
@@ -166,7 +174,7 @@ def run_baseline_grid(
                         "use_kv_cache_lookahead": None,
                         "proposal_sampling_device": None,
                         "selection_device": None,
-                        "inference_mode": bool(runtime_cfg.get("inference_mode", False)),
+                        "inference_mode": inference_mode,
                         "resume_skip_complete": resume_cfg["skip_complete"],
                         "cleanup_device_cache_after_prompt": cleanup_cfg["device_cache_after_prompt"],
                         "cleanup_device_cache_after_group": cleanup_cfg["device_cache_after_group"],
@@ -208,7 +216,7 @@ def run_n_trial_grid(
     ntrial_cfg = cfg.get("n_trial_methods", {})
     cleanup_cfg = cleanup_config(cfg)
     resume_cfg = resume_config(cfg)
-    runtime_cfg = cfg.get("runtime", {}) or {}
+    inference_mode = inference_mode_enabled(cfg)
     output_dir = Path(cfg["output"]["generations_dir"])
     token_log_dir = Path(cfg["output"]["token_log_dir"])
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -241,6 +249,8 @@ def run_n_trial_grid(
                     seed=seed,
                     shard_index=shard_index,
                     num_shards=num_shards,
+                    candidate_eval_batch_size=candidate_eval_batch_size,
+                    inference_mode=inference_mode,
                 ):
                     print(f"skip complete n-trial group: {output_path}")
                     continue
@@ -272,6 +282,7 @@ def run_n_trial_grid(
                     continuation_text = continuation_from_text(text, prompt)
                     rows.append(
                         {
+                            "implementation_profile": IMPLEMENTATION_PROFILE,
                             "experiment_name": exp_name,
                             "prompt_id": prompt_id,
                             "prompt_index": original_prompt_index,
@@ -286,7 +297,7 @@ def run_n_trial_grid(
                             "use_kv_cache_lookahead": use_kv_cache_lookahead,
                             "proposal_sampling_device": proposal_sampling_device,
                             "selection_device": selection_device,
-                            "inference_mode": bool(runtime_cfg.get("inference_mode", False)),
+                            "inference_mode": inference_mode,
                             "resume_skip_complete": resume_cfg["skip_complete"],
                             "cleanup_device_cache_after_prompt": cleanup_cfg["device_cache_after_prompt"],
                             "cleanup_device_cache_after_group": cleanup_cfg["device_cache_after_group"],
@@ -309,6 +320,7 @@ def run_n_trial_grid(
                         record_row = record.to_dict()
                         record_row.update(
                             {
+                                "implementation_profile": IMPLEMENTATION_PROFILE,
                                 "experiment_name": exp_name,
                                 "prompt_id": prompt_id,
                                 "prompt_index": original_prompt_index,
@@ -321,7 +333,7 @@ def run_n_trial_grid(
                                 "use_kv_cache_lookahead": use_kv_cache_lookahead,
                                 "proposal_sampling_device": proposal_sampling_device,
                                 "selection_device": selection_device,
-                                "inference_mode": bool(runtime_cfg.get("inference_mode", False)),
+                                "inference_mode": inference_mode,
                                 "resume_skip_complete": resume_cfg["skip_complete"],
                                 "cleanup_device_cache_after_prompt": cleanup_cfg["device_cache_after_prompt"],
                                 "cleanup_device_cache_after_group": cleanup_cfg["device_cache_after_group"],
