@@ -43,14 +43,7 @@ def next_logits(model, input_ids: torch.Tensor) -> torch.Tensor:
 
 
 def to_legacy_cache(past_key_values: Any) -> Any:
-    """Return a stable legacy tuple cache when Transformers exposes one.
-
-    Newer Transformers versions may return a mutable Cache object. Reusing that
-    object across candidate micro-batches can update internal cache state and
-    break equivalence with full-prefix lookahead. Converting to the legacy tuple
-    representation gives us a stable tensor-only cache for repeated candidate
-    evaluation.
-    """
+    """Return a stable legacy tuple cache when Transformers exposes one."""
     if past_key_values is None:
         return None
     if hasattr(past_key_values, "to_legacy_cache"):
@@ -66,12 +59,7 @@ def expand_batch_tensor(tensor: torch.Tensor, batch_size: int) -> torch.Tensor:
 
 
 def expand_past_key_values(past_key_values: Any, batch_size: int) -> Any:
-    """Expand legacy tuple/list KV caches from batch size 1 to `batch_size`.
-
-    GPT-2-like models in Transformers return a nested tuple of key/value tensors
-    with batch dimension first. This helper preserves non-tensor objects and
-    avoids materializing repeated prefix caches when possible.
-    """
+    """Expand legacy tuple/list KV caches from batch size 1 to `batch_size`."""
     past_key_values = to_legacy_cache(past_key_values)
     if past_key_values is None or batch_size == 1:
         return past_key_values
@@ -82,11 +70,23 @@ def expand_past_key_values(past_key_values: Any, batch_size: int) -> Any:
     if isinstance(past_key_values, list):
         return [expand_past_key_values(item, batch_size) for item in past_key_values]
     if hasattr(past_key_values, "batch_repeat_interleave"):
-        # Newer Transformers cache classes expose this method. It may copy, but
-        # should be avoided for ordinary GPT-2 runs because the legacy tuple is
-        # safer for repeated micro-batch lookahead.
         return past_key_values.batch_repeat_interleave(batch_size)
     return past_key_values
+
+
+def cache_sequence_length(past_key_values: Any) -> int | None:
+    """Infer cached sequence length from a legacy GPT-style KV cache."""
+    past_key_values = to_legacy_cache(past_key_values)
+    if past_key_values is None:
+        return None
+    try:
+        first_layer = past_key_values[0]
+        key = first_layer[0]
+        if torch.is_tensor(key) and key.dim() >= 3:
+            return int(key.shape[-2])
+    except Exception:
+        return None
+    return None
 
 
 @torch.no_grad()
@@ -106,12 +106,18 @@ def evaluate_candidate_batch_next_flatness(
     n = int(candidate_ids.shape[0])
 
     if past_key_values is not None:
-        expanded_past = expand_past_key_values(past_key_values, n)
-        outputs = model(
-            input_ids=candidate_ids.to(device).view(n, 1),
-            past_key_values=expanded_past,
-            use_cache=False,
-        )
+        stable_past = to_legacy_cache(past_key_values)
+        expanded_past = expand_past_key_values(stable_past, n)
+        past_len = cache_sequence_length(stable_past)
+        model_kwargs: dict[str, torch.Tensor | Any] = {
+            "input_ids": candidate_ids.to(device).view(n, 1),
+            "past_key_values": expanded_past,
+            "use_cache": False,
+        }
+        if past_len is not None:
+            model_kwargs["attention_mask"] = torch.ones(n, past_len + 1, dtype=torch.long, device=device)
+            model_kwargs["position_ids"] = torch.full((n, 1), past_len, dtype=torch.long, device=device)
+        outputs = model(**model_kwargs)
     else:
         repeated = input_ids.repeat(n, 1)
         appended = torch.cat([repeated, candidate_ids.to(device).view(n, 1)], dim=1)
@@ -129,15 +135,7 @@ def evaluate_candidates_next_flatness(
     candidate_eval_batch_size: int | None = None,
     past_key_values: Any | None = None,
 ) -> torch.Tensor:
-    """Evaluate next-state logit flatness for each candidate.
-
-    The default evaluates all candidates in one batch. Passing
-    `candidate_eval_batch_size` micro-batches the lookahead forward passes to
-    lower peak memory, which is important on Apple MPS and for large N.
-
-    When `past_key_values` is provided, candidates are evaluated as one-step
-    continuations of the cached prefix instead of re-forwarding the full prefix.
-    """
+    """Evaluate next-state logit flatness for each candidate."""
     if candidate_eval_batch_size is None or candidate_eval_batch_size <= 0:
         candidate_eval_batch_size = int(candidate_ids.shape[0])
 
@@ -171,9 +169,6 @@ def choose_candidate(
     elif mode == "maxflat":
         idx = int(torch.argmax(flatness_cpu).item())
     elif mode == "random":
-        # With one candidate there is no choice to make. Avoid consuming RNG so
-        # Random-1 remains an exact control for MinFlat-1/MaxFlat-1 under the
-        # same proposal seed. Use CPU RNG to avoid backend-specific MPS issues.
         idx = 0 if candidate_cpu.shape[0] == 1 else int(torch.randint(0, candidate_cpu.shape[0], (1,)).item())
     else:
         raise ValueError(f"Unknown mode: {mode}")
@@ -181,13 +176,7 @@ def choose_candidate(
 
 
 def banned_candidate_tokens(tokenizer) -> set[int]:
-    """Return special token IDs to ban from proposal candidates.
-
-    GPT-2-like models often have no native pad token, so `model_io` sets
-    `pad_token=eos_token`. In that case, banning `pad_token_id` would also ban
-    EOS and prevent Flatness-N from stopping early. Therefore, ban pad only when
-    it is distinct from EOS.
-    """
+    """Return special token IDs to ban from proposal candidates."""
     banned: set[int] = set()
     pad_id = tokenizer.pad_token_id
     eos_id = tokenizer.eos_token_id
@@ -225,7 +214,7 @@ def generate_flatness_controlled(
     input_ids = encoded["input_ids"].to(device)
     records: list[StepRecord] = []
 
-    prefix_outputs = model(input_ids=input_ids, use_cache=True)
+    prefix_outputs = model(input_ids=input_ids, attention_mask=torch.ones_like(input_ids), use_cache=True)
     logits_now = prefix_outputs.logits[0, -1, :]
     past_key_values = to_legacy_cache(getattr(prefix_outputs, "past_key_values", None))
 
@@ -256,11 +245,16 @@ def generate_flatness_controlled(
 
         chosen_tensor = torch.tensor([[chosen_id]], device=device)
         if past_key_values is not None:
-            advance_outputs = model(
-                input_ids=chosen_tensor,
-                past_key_values=past_key_values,
-                use_cache=True,
-            )
+            past_len = cache_sequence_length(past_key_values)
+            model_kwargs: dict[str, torch.Tensor | Any] = {
+                "input_ids": chosen_tensor,
+                "past_key_values": past_key_values,
+                "use_cache": True,
+            }
+            if past_len is not None:
+                model_kwargs["attention_mask"] = torch.ones(1, past_len + 1, dtype=torch.long, device=device)
+                model_kwargs["position_ids"] = torch.full((1, 1), past_len, dtype=torch.long, device=device)
+            advance_outputs = model(**model_kwargs)
             logits_now = advance_outputs.logits[0, -1, :]
             past_key_values = to_legacy_cache(getattr(advance_outputs, "past_key_values", None))
             input_ids = torch.cat([input_ids, chosen_tensor], dim=1)
