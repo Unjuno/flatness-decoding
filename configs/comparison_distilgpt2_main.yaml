@@ -27,6 +27,15 @@ n_trial_methods:
   # Increase to 2/4 only after confirming memory pressure stays low.
   candidate_eval_batch_size: 1
 
+runtime:
+  cleanup:
+    # Keep false by default to avoid per-prompt overhead; enable only if MPS
+    # memory pressure still grows after KV-cache lookahead and micro-batching.
+    device_cache_after_prompt: false
+    # Safe hygiene point after each method/N/seed group file is written.
+    device_cache_after_group: true
+    python_gc_after_group: false
+
 output:
   generations_dir: outputs/generations/comparison_distilgpt2_main
   token_log_dir: outputs/token_logs/comparison_distilgpt2_main
