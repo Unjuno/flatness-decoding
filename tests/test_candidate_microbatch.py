@@ -15,11 +15,15 @@ class DummyModel:
         self.batch_sizes = []
         self.seq_lens = []
         self.used_cache = []
+        self.saw_attention_mask = []
+        self.saw_position_ids = []
 
-    def __call__(self, input_ids, past_key_values=None, use_cache=None):
+    def __call__(self, input_ids, past_key_values=None, use_cache=None, attention_mask=None, position_ids=None):
         self.batch_sizes.append(int(input_ids.shape[0]))
         self.seq_lens.append(int(input_ids.shape[1]))
         self.used_cache.append(past_key_values is not None)
+        self.saw_attention_mask.append(attention_mask is not None)
+        self.saw_position_ids.append(position_ids is not None)
         batch = input_ids.shape[0]
         seq_len = input_ids.shape[1]
         logits = torch.zeros(batch, seq_len, self.vocab_size)
@@ -41,6 +45,8 @@ def tiny_gpt2() -> GPT2LMHeadModel:
         resid_pdrop=0.0,
         embd_pdrop=0.0,
         attn_pdrop=0.0,
+        bos_token_id=None,
+        eos_token_id=None,
         use_cache=True,
     )
     model = GPT2LMHeadModel(config)
@@ -84,6 +90,8 @@ def test_evaluate_candidates_next_flatness_uses_one_token_forwards_with_cache():
     assert model.batch_sizes == [2, 2, 1]
     assert model.seq_lens == [1, 1, 1]
     assert model.used_cache == [True, True, True]
+    assert model.saw_attention_mask == [True, True, True]
+    assert model.saw_position_ids == [True, True, True]
 
 
 def test_expand_past_key_values_expands_legacy_cache_batch_dimension():
@@ -109,7 +117,7 @@ def test_cached_candidate_lookahead_matches_full_prefix_lookahead_on_cpu():
         past_key_values=None,
     )
 
-    prefix_outputs = model(input_ids=input_ids, use_cache=True)
+    prefix_outputs = model(input_ids=input_ids, attention_mask=torch.ones_like(input_ids), use_cache=True)
     cached = evaluate_candidates_next_flatness(
         model=model,
         input_ids=input_ids,
