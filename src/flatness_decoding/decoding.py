@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from typing import Literal, Any
+from typing import Any, Literal
 
 import torch
 
@@ -42,6 +42,22 @@ def next_logits(model, input_ids: torch.Tensor) -> torch.Tensor:
     return outputs.logits[0, -1, :]
 
 
+def to_legacy_cache(past_key_values: Any) -> Any:
+    """Return a stable legacy tuple cache when Transformers exposes one.
+
+    Newer Transformers versions may return a mutable Cache object. Reusing that
+    object across candidate micro-batches can update internal cache state and
+    break equivalence with full-prefix lookahead. Converting to the legacy tuple
+    representation gives us a stable tensor-only cache for repeated candidate
+    evaluation.
+    """
+    if past_key_values is None:
+        return None
+    if hasattr(past_key_values, "to_legacy_cache"):
+        return past_key_values.to_legacy_cache()
+    return past_key_values
+
+
 def expand_batch_tensor(tensor: torch.Tensor, batch_size: int) -> torch.Tensor:
     """View a batch-1 cache tensor as `batch_size` without copying when possible."""
     if tensor.dim() == 0 or tensor.shape[0] != 1 or batch_size == 1:
@@ -56,6 +72,7 @@ def expand_past_key_values(past_key_values: Any, batch_size: int) -> Any:
     with batch dimension first. This helper preserves non-tensor objects and
     avoids materializing repeated prefix caches when possible.
     """
+    past_key_values = to_legacy_cache(past_key_values)
     if past_key_values is None or batch_size == 1:
         return past_key_values
     if torch.is_tensor(past_key_values):
@@ -66,7 +83,8 @@ def expand_past_key_values(past_key_values: Any, batch_size: int) -> Any:
         return [expand_past_key_values(item, batch_size) for item in past_key_values]
     if hasattr(past_key_values, "batch_repeat_interleave"):
         # Newer Transformers cache classes expose this method. It may copy, but
-        # is the safest generic fallback for non-legacy cache objects.
+        # should be avoided for ordinary GPT-2 runs because the legacy tuple is
+        # safer for repeated micro-batch lookahead.
         return past_key_values.batch_repeat_interleave(batch_size)
     return past_key_values
 
@@ -123,6 +141,7 @@ def evaluate_candidates_next_flatness(
     if candidate_eval_batch_size is None or candidate_eval_batch_size <= 0:
         candidate_eval_batch_size = int(candidate_ids.shape[0])
 
+    stable_past = to_legacy_cache(past_key_values)
     chunks: list[torch.Tensor] = []
     for start in range(0, int(candidate_ids.shape[0]), candidate_eval_batch_size):
         end = start + candidate_eval_batch_size
@@ -132,7 +151,7 @@ def evaluate_candidates_next_flatness(
                 model,
                 input_ids,
                 chunk,
-                past_key_values=past_key_values,
+                past_key_values=stable_past,
             )
         )
     return torch.cat(chunks, dim=0)
@@ -208,7 +227,7 @@ def generate_flatness_controlled(
 
     prefix_outputs = model(input_ids=input_ids, use_cache=True)
     logits_now = prefix_outputs.logits[0, -1, :]
-    past_key_values = getattr(prefix_outputs, "past_key_values", None)
+    past_key_values = to_legacy_cache(getattr(prefix_outputs, "past_key_values", None))
 
     banned = banned_candidate_tokens(tokenizer)
 
@@ -243,7 +262,7 @@ def generate_flatness_controlled(
                 use_cache=True,
             )
             logits_now = advance_outputs.logits[0, -1, :]
-            past_key_values = getattr(advance_outputs, "past_key_values", None)
+            past_key_values = to_legacy_cache(getattr(advance_outputs, "past_key_values", None))
             input_ids = torch.cat([input_ids, chosen_tensor], dim=1)
         else:
             input_ids = torch.cat([input_ids, chosen_tensor], dim=1)
