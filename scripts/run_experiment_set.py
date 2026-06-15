@@ -10,6 +10,7 @@ from tqdm import tqdm
 from flatness_decoding.baselines import generate_baseline
 from flatness_decoding.decoding import generate_flatness_controlled
 from flatness_decoding.io_utils import read_jsonl, write_jsonl
+from flatness_decoding.memory import cleanup_config, cleanup_device_cache
 from flatness_decoding.metrics import continuation_from_text
 from flatness_decoding.model_io import load_causal_lm
 
@@ -56,6 +57,7 @@ def run_baseline_grid(
     exp_name = cfg["experiment_name"]
     gen_cfg = cfg["generation"]
     baseline_cfg = cfg.get("baselines", {})
+    cleanup_cfg = cleanup_config(cfg)
     output_dir = Path(cfg["output"]["generations_dir"])
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -100,6 +102,12 @@ def run_baseline_grid(
                         "method_family": "baseline",
                         "n_trials": None,
                         "proposal_temperature": None,
+                        "candidate_eval_batch_size": None,
+                        "use_kv_cache_lookahead": None,
+                        "proposal_sampling_device": None,
+                        "selection_device": None,
+                        "cleanup_device_cache_after_prompt": cleanup_cfg["device_cache_after_prompt"],
+                        "cleanup_device_cache_after_group": cleanup_cfg["device_cache_after_group"],
                         "baseline_temperature": baseline_cfg.get("temperature", 1.0),
                         "top_p": baseline_cfg.get("top_p", None),
                         "top_k": baseline_cfg.get("top_k", None),
@@ -115,9 +123,13 @@ def run_baseline_grid(
                         "tokens_per_second": result.num_output_tokens / elapsed if elapsed > 0 else None,
                     }
                 )
+                if cleanup_cfg["device_cache_after_prompt"]:
+                    cleanup_device_cache(device)
 
             stem = f"experiment={exp_name}_model={model_name.replace('/', '__')}_method={method}_seed={seed}{suffix}"
             write_jsonl(output_dir / f"{stem}.jsonl", rows)
+            if cleanup_cfg["device_cache_after_group"]:
+                cleanup_device_cache(device, collect_python=cleanup_cfg["python_gc_after_group"])
 
 
 def run_n_trial_grid(
@@ -133,6 +145,7 @@ def run_n_trial_grid(
     exp_name = cfg["experiment_name"]
     gen_cfg = cfg["generation"]
     ntrial_cfg = cfg.get("n_trial_methods", {})
+    cleanup_cfg = cleanup_config(cfg)
     output_dir = Path(cfg["output"]["generations_dir"])
     token_log_dir = Path(cfg["output"]["token_log_dir"])
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -145,6 +158,9 @@ def run_n_trial_grid(
     candidate_eval_batch_size = ntrial_cfg.get("candidate_eval_batch_size")
     if candidate_eval_batch_size is not None:
         candidate_eval_batch_size = int(candidate_eval_batch_size)
+    use_kv_cache_lookahead = True
+    proposal_sampling_device = "cpu"
+    selection_device = "cpu"
     suffix = shard_suffix(num_shards, shard_index)
 
     for method in methods:
@@ -187,6 +203,11 @@ def run_n_trial_grid(
                             "n_trials": int(n_trials),
                             "proposal_temperature": proposal_temperature,
                             "candidate_eval_batch_size": candidate_eval_batch_size,
+                            "use_kv_cache_lookahead": use_kv_cache_lookahead,
+                            "proposal_sampling_device": proposal_sampling_device,
+                            "selection_device": selection_device,
+                            "cleanup_device_cache_after_prompt": cleanup_cfg["device_cache_after_prompt"],
+                            "cleanup_device_cache_after_group": cleanup_cfg["device_cache_after_group"],
                             "baseline_temperature": None,
                             "top_p": None,
                             "top_k": None,
@@ -215,9 +236,16 @@ def run_n_trial_grid(
                                 "actual_seed": actual_seed,
                                 "model": model_name,
                                 "candidate_eval_batch_size": candidate_eval_batch_size,
+                                "use_kv_cache_lookahead": use_kv_cache_lookahead,
+                                "proposal_sampling_device": proposal_sampling_device,
+                                "selection_device": selection_device,
+                                "cleanup_device_cache_after_prompt": cleanup_cfg["device_cache_after_prompt"],
+                                "cleanup_device_cache_after_group": cleanup_cfg["device_cache_after_group"],
                             }
                         )
                         token_rows.append(record_row)
+                    if cleanup_cfg["device_cache_after_prompt"]:
+                        cleanup_device_cache(device)
 
                 stem = (
                     f"experiment={exp_name}_model={model_name.replace('/', '__')}_"
@@ -225,6 +253,8 @@ def run_n_trial_grid(
                 )
                 write_jsonl(output_dir / f"{stem}.jsonl", rows)
                 write_jsonl(token_log_dir / f"{stem}.tokenlog.jsonl", token_rows)
+                if cleanup_cfg["device_cache_after_group"]:
+                    cleanup_device_cache(device, collect_python=cleanup_cfg["python_gc_after_group"])
 
 
 def main() -> None:
