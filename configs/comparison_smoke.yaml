@@ -23,6 +23,8 @@ n_trial_methods:
   methods: [random, minflat, maxflat]
   n_values: [1, 4, 8]
   proposal_temperature: 1.0
+  # Official path: exact full-prefix candidate evaluation, micro-batched for memory.
+  use_kv_cache_lookahead: false
   candidate_eval_batch_size: 1
 
 runtime:
