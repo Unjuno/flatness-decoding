@@ -96,7 +96,7 @@ def test_ntrial_output_complete_checks_token_log_row_count(tmp_path):
                 "method_family": "n_trial",
                 "n_trials": 4,
                 "candidate_eval_batch_size": 2,
-                "use_kv_cache_lookahead": True,
+                "use_kv_cache_lookahead": False,
                 "proposal_sampling_device": "cpu",
                 "selection_device": "cpu",
                 "inference_mode": False,
@@ -119,6 +119,7 @@ def test_ntrial_output_complete_checks_token_log_row_count(tmp_path):
                 "method": "minflat",
                 "n_trials": 4,
                 "candidate_eval_batch_size": 2,
+                "use_kv_cache_lookahead": False,
                 "inference_mode": False,
                 "seed": 0,
                 "shard_index": 0,
@@ -132,6 +133,7 @@ def test_ntrial_output_complete_checks_token_log_row_count(tmp_path):
                 "method": "minflat",
                 "n_trials": 4,
                 "candidate_eval_batch_size": 2,
+                "use_kv_cache_lookahead": False,
                 "inference_mode": False,
                 "seed": 0,
                 "shard_index": 0,
@@ -154,6 +156,7 @@ def test_ntrial_output_complete_checks_token_log_row_count(tmp_path):
         num_shards=2,
         candidate_eval_batch_size=2,
         inference_mode=False,
+        use_kv_cache_lookahead=False,
     )
 
 
@@ -169,7 +172,7 @@ def test_ntrial_output_complete_rejects_missing_token_rows(tmp_path):
                 "method_family": "n_trial",
                 "n_trials": 4,
                 "candidate_eval_batch_size": 2,
-                "use_kv_cache_lookahead": True,
+                "use_kv_cache_lookahead": False,
                 "proposal_sampling_device": "cpu",
                 "selection_device": "cpu",
                 "inference_mode": False,
@@ -197,6 +200,7 @@ def test_ntrial_output_complete_rejects_missing_token_rows(tmp_path):
         num_shards=2,
         candidate_eval_batch_size=2,
         inference_mode=False,
+        use_kv_cache_lookahead=False,
     )
 
 
@@ -212,7 +216,7 @@ def test_ntrial_output_complete_rejects_different_batch_size(tmp_path):
                 "method_family": "n_trial",
                 "n_trials": 4,
                 "candidate_eval_batch_size": 1,
-                "use_kv_cache_lookahead": True,
+                "use_kv_cache_lookahead": False,
                 "proposal_sampling_device": "cpu",
                 "selection_device": "cpu",
                 "inference_mode": False,
@@ -235,6 +239,7 @@ def test_ntrial_output_complete_rejects_different_batch_size(tmp_path):
                 "method": "minflat",
                 "n_trials": 4,
                 "candidate_eval_batch_size": 1,
+                "use_kv_cache_lookahead": False,
                 "inference_mode": False,
                 "seed": 0,
                 "shard_index": 0,
@@ -257,4 +262,5 @@ def test_ntrial_output_complete_rejects_different_batch_size(tmp_path):
         num_shards=2,
         candidate_eval_batch_size=2,
         inference_mode=False,
+        use_kv_cache_lookahead=False,
     )
