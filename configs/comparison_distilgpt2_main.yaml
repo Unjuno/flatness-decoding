@@ -23,8 +23,10 @@ n_trial_methods:
   methods: [random, minflat, maxflat]
   n_values: [1, 4, 8, 16, 32]
   proposal_temperature: 1.0
-  # Micro-batch candidate lookahead evaluation to reduce peak memory on MPS.
-  # Increase to 2/4 only after confirming memory pressure stays low.
+  # Official path: exact full-prefix candidate evaluation, micro-batched for memory.
+  # KV-cache lookahead is disabled because it did not pass equivalence tests here.
+  use_kv_cache_lookahead: false
+  # Increase to 2 only after confirming memory pressure stays low on smoke.
   candidate_eval_batch_size: 1
 
 runtime:
@@ -33,7 +35,7 @@ runtime:
     skip_complete: true
   cleanup:
     # Keep false by default to avoid per-prompt overhead; enable only if MPS
-    # memory pressure still grows after KV-cache lookahead and micro-batching.
+    # memory pressure still grows after full-prefix micro-batching.
     device_cache_after_prompt: false
     # Safe hygiene point after each method/N/seed group file is written.
     device_cache_after_group: true
