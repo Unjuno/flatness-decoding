@@ -76,3 +76,56 @@ def test_build_results_table_keeps_generation_only_baseline() -> None:
     assert pd.isna(row["n_trials"])
     assert row["mean_output_tokens"] == 60.0
     assert row["distinct_1"] == 0.63
+
+
+def test_build_results_table_preserves_extra_numeric_metrics() -> None:
+    metrics = pd.DataFrame(
+        [
+            {
+                "kind": "generation",
+                "experiment_name": "comparison_smoke",
+                "model": "distilgpt2",
+                "method": "beam",
+                "method_family": "baseline",
+                "n_trials": 4,
+                "seed": 0,
+                "num_outputs": 13,
+                "mean_continuation_words": 56.0,
+                "mean_output_tokens": 82.0,
+                "mean_runtime_seconds": 1.2,
+                "mean_tokens_per_second": 66.0,
+                "distinct_1": 0.14,
+                "distinct_2": 0.20,
+                "distinct_3": 0.21,
+                "repetition_4": 0.78,
+                "mean_nll": 0.64,
+                "ppl": 1.90,
+                "avg_sentence_like_words": 10.3,
+            },
+            {
+                "kind": "token_log",
+                "experiment_name": None,
+                "model": None,
+                "method": "beam",
+                "method_family": None,
+                "n_trials": "4",
+                "seed": 0,
+                "mean_chosen_flatness": 3.9,
+                "mean_candidate_flatness": 3.5,
+                "mean_min_candidate_flatness": 3.2,
+                "mean_max_candidate_flatness": 4.1,
+                "mean_selection_gain": 0.1,
+                "mean_candidate_unique_count": 3.0,
+            },
+        ]
+    )
+
+    table = build_results_table(metrics)
+
+    assert len(table) == 1
+    row = table.iloc[0]
+    assert row["mean_nll"] == 0.64
+    assert row["ppl"] == 1.90
+    assert row["avg_sentence_like_words"] == 10.3
+    assert row["mean_min_candidate_flatness"] == 3.2
+    assert row["mean_max_candidate_flatness"] == 4.1
