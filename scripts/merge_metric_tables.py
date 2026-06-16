@@ -17,8 +17,19 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def deduplicate_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Drop duplicate column names after CSV loading.
+
+    Some metric files can contain repeated key columns after upstream aggregation
+    or concatenation. Pandas groupby requires a group key to resolve to one
+    Series, so duplicate columns such as multiple ``n_trials`` fields must be
+    removed before normalization and aggregation.
+    """
+    return df.loc[:, ~df.columns.duplicated()].copy()
+
+
 def normalize_keys(df: pd.DataFrame) -> pd.DataFrame:
-    df = df.copy()
+    df = deduplicate_columns(df)
     for col in GROUP_KEY:
         if col not in df.columns:
             df[col] = None
@@ -29,7 +40,7 @@ def aggregate_extra(path: str | Path) -> pd.DataFrame:
     df = pd.read_csv(path)
     df = normalize_keys(df)
     numeric_cols = [col for col in df.columns if pd.api.types.is_numeric_dtype(df[col])]
-    numeric_cols = [col for col in numeric_cols if col not in {"seed"}]
+    numeric_cols = [col for col in numeric_cols if col not in set(GROUP_KEY) | {"seed"}]
     keep = GROUP_KEY + numeric_cols
     df = df[[col for col in keep if col in df.columns]]
     return df.groupby(GROUP_KEY, dropna=False).mean(numeric_only=True).reset_index()
