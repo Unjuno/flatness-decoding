@@ -31,6 +31,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--require-methods", nargs="+", default=DEFAULT_REQUIRED_METHODS)
     parser.add_argument("--require-token-log-methods", nargs="+", default=DEFAULT_REQUIRED_TOKEN_LOG_METHODS)
     parser.add_argument("--allow-missing-continuation", action="store_true")
+    parser.add_argument(
+        "--allow-empty-analysis-text",
+        action="store_true",
+        help=(
+            "Do not fail when continuation/analysis text is empty despite nonzero "
+            "generated token count. This can happen when generated tokens decode "
+            "to EOS, special tokens, or whitespace only."
+        ),
+    )
     parser.add_argument("--fail", action="store_true", help="Exit nonzero if errors are found.")
     return parser.parse_args()
 
@@ -54,8 +63,13 @@ def load_generation_rows(input_dir: Path) -> tuple[list[dict[str, Any]], list[st
     return rows_all, errors
 
 
-def validate_generation_rows(rows: list[dict[str, Any]], allow_missing_continuation: bool) -> list[str]:
+def validate_generation_rows(
+    rows: list[dict[str, Any]],
+    allow_missing_continuation: bool,
+    allow_empty_analysis_text: bool,
+) -> tuple[list[str], list[str]]:
     errors: list[str] = []
+    warnings: list[str] = []
     required = ["prompt_id", "prompt", "text", "method", "seed"]
     for idx, row in enumerate(rows):
         for key in required:
@@ -65,8 +79,12 @@ def validate_generation_rows(rows: list[dict[str, Any]], allow_missing_continuat
             errors.append(f"row {idx} missing continuation_text in {row.get('_file')}")
         analysis_text = analysis_text_from_row(row)
         if row.get("num_output_tokens") not in (None, 0) and analysis_text == "":
-            errors.append(f"row {idx} has empty analysis text but nonzero output tokens in {row.get('_file')}")
-    return errors
+            message = f"row {idx} has empty analysis text but nonzero output tokens in {row.get('_file')}"
+            if allow_empty_analysis_text:
+                warnings.append(message)
+            else:
+                errors.append(message)
+    return errors, warnings
 
 
 def validate_required_methods(rows: list[dict[str, Any]], methods: list[str]) -> list[str]:
@@ -149,12 +167,27 @@ def main() -> None:
     token_log_dir = Path(args.token_log_dir) if args.token_log_dir else None
 
     rows, errors = load_generation_rows(input_dir)
+    warnings: list[str] = []
     if rows:
         summarize(rows)
-        errors.extend(validate_generation_rows(rows, args.allow_missing_continuation))
+        row_errors, row_warnings = validate_generation_rows(
+            rows,
+            args.allow_missing_continuation,
+            args.allow_empty_analysis_text,
+        )
+        errors.extend(row_errors)
+        warnings.extend(row_warnings)
         errors.extend(validate_required_methods(rows, args.require_methods))
         errors.extend(validate_duplicate_rows(rows))
     errors.extend(validate_token_logs(token_log_dir, args.require_token_log_methods))
+
+    if warnings:
+        print("validation warnings:")
+        max_to_show = 20
+        for warning in warnings[:max_to_show]:
+            print(f"- {warning}")
+        if len(warnings) > max_to_show:
+            print(f"- ... {len(warnings) - max_to_show} more warnings")
 
     if errors:
         print("validation errors:")
