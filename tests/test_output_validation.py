@@ -31,15 +31,37 @@ def valid_generation_row(method="minflat"):
 
 
 def test_validate_generation_rows_accepts_valid_row():
-    errors = validate_generation_rows([valid_generation_row()], allow_missing_continuation=False)
+    errors, warnings = validate_generation_rows(
+        [valid_generation_row()],
+        allow_missing_continuation=False,
+        allow_empty_analysis_text=False,
+    )
     assert errors == []
+    assert warnings == []
 
 
 def test_validate_generation_rows_rejects_missing_continuation():
     row = valid_generation_row()
     row.pop("continuation_text")
-    errors = validate_generation_rows([row], allow_missing_continuation=False)
+    errors, warnings = validate_generation_rows(
+        [row],
+        allow_missing_continuation=False,
+        allow_empty_analysis_text=False,
+    )
     assert any("continuation_text" in error for error in errors)
+    assert warnings == []
+
+
+def test_validate_generation_rows_can_warn_on_empty_analysis_text():
+    row = valid_generation_row()
+    row["continuation_text"] = ""
+    errors, warnings = validate_generation_rows(
+        [row],
+        allow_missing_continuation=False,
+        allow_empty_analysis_text=True,
+    )
+    assert errors == []
+    assert any("empty analysis text" in warning for warning in warnings)
 
 
 def test_validate_required_methods_detects_missing_method():
