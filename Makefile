@@ -1,4 +1,4 @@
-.PHONY: install install-eval download-models check smoke plan-parallel estimate-tiny estimate-smoke estimate-distilgpt2-main estimate-main clean-tiny clean-smoke clean-distilgpt2-main clean-main comparison-tiny comparison-tiny-parallel validate-tiny comparison-smoke comparison-smoke-parallel validate-smoke build-prompts comparison-main comparison-main-parallel validate-main comparison-distilgpt2-main comparison-distilgpt2-main-parallel validate-distilgpt2-main eval-smoke table-smoke extended-smoke ppl-smoke trends-smoke metric-suite-smoke merge-smoke manifest-smoke analyze-smoke token-analyze-smoke plot-smoke extended-distilgpt2-main ppl-distilgpt2-main trends-distilgpt2-main metric-suite-distilgpt2-main merge-distilgpt2-main manifest-distilgpt2-main token-analyze-distilgpt2-main postprocess-distilgpt2-main extended-main ppl-main trends-main metric-suite-main merge-main manifest-main token-analyze-main postprocess-main paper-check paper-check-final export-smoke-table test dvc-init-local
+.PHONY: install install-eval download-models check smoke plan-parallel estimate-tiny estimate-smoke estimate-distilgpt2-main estimate-main clean-tiny clean-smoke clean-distilgpt2-main clean-main comparison-tiny comparison-tiny-parallel validate-tiny comparison-smoke comparison-smoke-parallel validate-smoke build-prompts build-writingprompts build-wikitext-pilot comparison-main comparison-main-parallel validate-main comparison-distilgpt2-main comparison-distilgpt2-main-parallel validate-distilgpt2-main eval-smoke table-smoke extended-smoke ppl-smoke trends-smoke metric-suite-smoke merge-smoke manifest-smoke analyze-smoke token-analyze-smoke plot-smoke extended-distilgpt2-main ppl-distilgpt2-main trends-distilgpt2-main metric-suite-distilgpt2-main merge-distilgpt2-main manifest-distilgpt2-main token-analyze-distilgpt2-main postprocess-distilgpt2-main extended-main ppl-main trends-main metric-suite-main merge-main manifest-main token-analyze-main postprocess-main paper-check paper-check-final export-smoke-table test dvc-init-local
 
 PYTHONPATH := src
 
@@ -39,10 +39,10 @@ clean-smoke:
 	PYTHONPATH=$(PYTHONPATH) python scripts/clean_experiment_outputs.py --experiment comparison_smoke --yes
 
 clean-distilgpt2-main:
-	PYTHONPATH=$(PYTHONPATH) python scripts/clean_experiment_outputs.py --experiment comparison_distilgpt2_main --yes
+	PYTHONPATH=$(PYTHONPATH) python scripts/clean_experiment_outputs.py --experiment comparison_distilgpt2_writingprompts --yes
 
 clean-main:
-	PYTHONPATH=$(PYTHONPATH) python scripts/clean_experiment_outputs.py --experiment comparison_main --yes
+	PYTHONPATH=$(PYTHONPATH) python scripts/clean_experiment_outputs.py --experiment comparison_gpt2_writingprompts --yes
 
 comparison-tiny:
 	PYTHONPATH=$(PYTHONPATH) python scripts/run_pipeline.py --config configs/comparison_tiny.yaml
@@ -75,19 +75,36 @@ validate-smoke:
 	PYTHONPATH=$(PYTHONPATH) python scripts/validate_generation_outputs.py \
 		--input-dir outputs/generations/comparison_smoke \
 		--token-log-dir outputs/token_logs/comparison_smoke \
+		--require-methods greedy beam sampling temperature top_p top_k random minflat maxflat \
+		--require-token-log-methods random minflat maxflat \
 		--fail
 
-build-prompts:
+build-prompts: build-writingprompts
+
+build-writingprompts:
+	PYTHONPATH=$(PYTHONPATH) python scripts/build_prompt_subset.py \
+		--dataset euclaise/writingprompts \
+		--split validation \
+		--prompt-field prompt \
+		--reference-field story \
+		--output prompts/writingprompts_fixed_100.jsonl \
+		--limit 100 \
+		--min-prompt-words 3 \
+		--prefix wp \
+		--shuffle \
+		--seed 0
+
+build-wikitext-pilot:
 	PYTHONPATH=$(PYTHONPATH) python scripts/build_prompt_subset.py \
 		--dataset wikitext \
 		--config wikitext-103-raw-v1 \
 		--split validation \
 		--text-field text \
-		--output prompts/main_prompts.jsonl \
+		--output prompts/wikitext_pilot_prompts.jsonl \
 		--limit 100 \
 		--min-words 40 \
 		--prompt-words 32 \
-		--prefix main \
+		--prefix wtpilot \
 		--shuffle \
 		--seed 0
 
@@ -100,8 +117,8 @@ comparison-main-parallel:
 
 validate-main:
 	PYTHONPATH=$(PYTHONPATH) python scripts/validate_generation_outputs.py \
-		--input-dir outputs/generations/comparison_main \
-		--token-log-dir outputs/token_logs/comparison_main \
+		--input-dir outputs/generations/comparison_gpt2_writingprompts \
+		--token-log-dir outputs/token_logs/comparison_gpt2_writingprompts \
 		--fail
 
 comparison-distilgpt2-main:
@@ -113,8 +130,8 @@ comparison-distilgpt2-main-parallel:
 
 validate-distilgpt2-main:
 	PYTHONPATH=$(PYTHONPATH) python scripts/validate_generation_outputs.py \
-		--input-dir outputs/generations/comparison_distilgpt2_main \
-		--token-log-dir outputs/token_logs/comparison_distilgpt2_main \
+		--input-dir outputs/generations/comparison_distilgpt2_writingprompts \
+		--token-log-dir outputs/token_logs/comparison_distilgpt2_writingprompts \
 		--fail
 
 eval-smoke:
@@ -179,121 +196,121 @@ plot-smoke:
 
 postprocess-distilgpt2-main: validate-distilgpt2-main manifest-distilgpt2-main
 	PYTHONPATH=$(PYTHONPATH) python scripts/run_evaluate.py \
-		--input-dir outputs/generations/comparison_distilgpt2_main \
-		--token-log-dir outputs/token_logs/comparison_distilgpt2_main \
-		--output results/summary/comparison_distilgpt2_main_metrics.csv
+		--input-dir outputs/generations/comparison_distilgpt2_writingprompts \
+		--token-log-dir outputs/token_logs/comparison_distilgpt2_writingprompts \
+		--output results/summary/comparison_distilgpt2_writingprompts_metrics.csv
 	PYTHONPATH=$(PYTHONPATH) python scripts/build_results_table.py \
-		--metrics results/summary/comparison_distilgpt2_main_metrics.csv \
-		--output results/summary/comparison_distilgpt2_main_table.csv
+		--metrics results/summary/comparison_distilgpt2_writingprompts_metrics.csv \
+		--output results/summary/comparison_distilgpt2_writingprompts_table.csv
 	$(MAKE) analyze-distilgpt2-main token-analyze-distilgpt2-main plot-distilgpt2-main extended-distilgpt2-main ppl-distilgpt2-main trends-distilgpt2-main merge-distilgpt2-main metric-suite-distilgpt2-main
 
 analyze-distilgpt2-main:
 	PYTHONPATH=$(PYTHONPATH) python scripts/analyze_results.py \
-		--table results/summary/comparison_distilgpt2_main_table.csv \
-		--output results/summary/comparison_distilgpt2_main_analysis.md
+		--table results/summary/comparison_distilgpt2_writingprompts_table.csv \
+		--output results/summary/comparison_distilgpt2_writingprompts_analysis.md
 
 plot-distilgpt2-main:
 	PYTHONPATH=$(PYTHONPATH) python scripts/plot_results.py \
-		--input results/summary/comparison_distilgpt2_main_metrics.csv \
-		--output-dir results/figures/comparison_distilgpt2_main
+		--input results/summary/comparison_distilgpt2_writingprompts_metrics.csv \
+		--output-dir results/figures/comparison_distilgpt2_writingprompts
 
 token-analyze-distilgpt2-main:
 	PYTHONPATH=$(PYTHONPATH) python scripts/analyze_token_logs.py \
-		--token-log-dir outputs/token_logs/comparison_distilgpt2_main \
-		--output-dir results/figures/comparison_distilgpt2_main/token_analysis \
-		--summary-output results/summary/comparison_distilgpt2_main_token_trace.csv
+		--token-log-dir outputs/token_logs/comparison_distilgpt2_writingprompts \
+		--output-dir results/figures/comparison_distilgpt2_writingprompts/token_analysis \
+		--summary-output results/summary/comparison_distilgpt2_writingprompts_token_trace.csv
 
 extended-distilgpt2-main:
 	PYTHONPATH=$(PYTHONPATH) python scripts/evaluate_extended_metrics.py \
-		--input-dir outputs/generations/comparison_distilgpt2_main \
-		--output results/summary/comparison_distilgpt2_main_extended_metrics.csv
+		--input-dir outputs/generations/comparison_distilgpt2_writingprompts \
+		--output results/summary/comparison_distilgpt2_writingprompts_extended_metrics.csv
 
 ppl-distilgpt2-main:
 	PYTHONPATH=$(PYTHONPATH) python scripts/evaluate_ppl.py \
-		--input-dir outputs/generations/comparison_distilgpt2_main \
+		--input-dir outputs/generations/comparison_distilgpt2_writingprompts \
 		--model distilgpt2 \
-		--output results/summary/comparison_distilgpt2_main_ppl.csv
+		--output results/summary/comparison_distilgpt2_writingprompts_ppl.csv
 
 trends-distilgpt2-main:
 	PYTHONPATH=$(PYTHONPATH) python scripts/fit_n_trends.py \
-		--table results/summary/comparison_distilgpt2_main_table.csv \
-		--output results/summary/comparison_distilgpt2_main_n_trend_models.csv \
-		--figure-dir results/figures/comparison_distilgpt2_main/n_trends
+		--table results/summary/comparison_distilgpt2_writingprompts_table.csv \
+		--output results/summary/comparison_distilgpt2_writingprompts_n_trend_models.csv \
+		--figure-dir results/figures/comparison_distilgpt2_writingprompts/n_trends
 
 merge-distilgpt2-main:
 	PYTHONPATH=$(PYTHONPATH) python scripts/merge_metric_tables.py \
-		--base results/summary/comparison_distilgpt2_main_table.csv \
-		--extras results/summary/comparison_distilgpt2_main_extended_metrics.csv results/summary/comparison_distilgpt2_main_ppl.csv \
-		--output results/summary/comparison_distilgpt2_main_merged_table.csv
+		--base results/summary/comparison_distilgpt2_writingprompts_table.csv \
+		--extras results/summary/comparison_distilgpt2_writingprompts_extended_metrics.csv results/summary/comparison_distilgpt2_writingprompts_ppl.csv \
+		--output results/summary/comparison_distilgpt2_writingprompts_merged_table.csv
 
 metric-suite-distilgpt2-main:
 	PYTHONPATH=$(PYTHONPATH) python scripts/plot_metric_suite.py \
-		--tables results/summary/comparison_distilgpt2_main_table.csv results/summary/comparison_distilgpt2_main_extended_metrics.csv results/summary/comparison_distilgpt2_main_ppl.csv \
-		--output-dir results/figures/comparison_distilgpt2_main/metric_suite
+		--tables results/summary/comparison_distilgpt2_writingprompts_table.csv results/summary/comparison_distilgpt2_writingprompts_extended_metrics.csv results/summary/comparison_distilgpt2_writingprompts_ppl.csv \
+		--output-dir results/figures/comparison_distilgpt2_writingprompts/metric_suite
 
 manifest-distilgpt2-main:
 	PYTHONPATH=$(PYTHONPATH) python scripts/write_run_manifest.py \
 		--config configs/comparison_distilgpt2_main.yaml \
-		--output results/summary/comparison_distilgpt2_main_manifest.json
+		--output results/summary/comparison_distilgpt2_writingprompts_manifest.json
 
 postprocess-main: validate-main manifest-main
 	PYTHONPATH=$(PYTHONPATH) python scripts/run_evaluate.py \
-		--input-dir outputs/generations/comparison_main \
-		--token-log-dir outputs/token_logs/comparison_main \
-		--output results/summary/comparison_main_metrics.csv
+		--input-dir outputs/generations/comparison_gpt2_writingprompts \
+		--token-log-dir outputs/token_logs/comparison_gpt2_writingprompts \
+		--output results/summary/comparison_gpt2_writingprompts_metrics.csv
 	PYTHONPATH=$(PYTHONPATH) python scripts/build_results_table.py \
-		--metrics results/summary/comparison_main_metrics.csv \
-		--output results/summary/comparison_main_table.csv
+		--metrics results/summary/comparison_gpt2_writingprompts_metrics.csv \
+		--output results/summary/comparison_gpt2_writingprompts_table.csv
 	$(MAKE) analyze-main token-analyze-main plot-main extended-main ppl-main trends-main merge-main metric-suite-main
 
 analyze-main:
 	PYTHONPATH=$(PYTHONPATH) python scripts/analyze_results.py \
-		--table results/summary/comparison_main_table.csv \
-		--output results/summary/comparison_main_analysis.md
+		--table results/summary/comparison_gpt2_writingprompts_table.csv \
+		--output results/summary/comparison_gpt2_writingprompts_analysis.md
 
 plot-main:
 	PYTHONPATH=$(PYTHONPATH) python scripts/plot_results.py \
-		--input results/summary/comparison_main_metrics.csv \
-		--output-dir results/figures/comparison_main
+		--input results/summary/comparison_gpt2_writingprompts_metrics.csv \
+		--output-dir results/figures/comparison_gpt2_writingprompts
 
 token-analyze-main:
 	PYTHONPATH=$(PYTHONPATH) python scripts/analyze_token_logs.py \
-		--token-log-dir outputs/token_logs/comparison_main \
-		--output-dir results/figures/comparison_main/token_analysis \
-		--summary-output results/summary/comparison_main_token_trace.csv
+		--token-log-dir outputs/token_logs/comparison_gpt2_writingprompts \
+		--output-dir results/figures/comparison_gpt2_writingprompts/token_analysis \
+		--summary-output results/summary/comparison_gpt2_writingprompts_token_trace.csv
 
 extended-main:
 	PYTHONPATH=$(PYTHONPATH) python scripts/evaluate_extended_metrics.py \
-		--input-dir outputs/generations/comparison_main \
-		--output results/summary/comparison_main_extended_metrics.csv
+		--input-dir outputs/generations/comparison_gpt2_writingprompts \
+		--output results/summary/comparison_gpt2_writingprompts_extended_metrics.csv
 
 ppl-main:
 	PYTHONPATH=$(PYTHONPATH) python scripts/evaluate_ppl.py \
-		--input-dir outputs/generations/comparison_main \
+		--input-dir outputs/generations/comparison_gpt2_writingprompts \
 		--model gpt2 \
-		--output results/summary/comparison_main_ppl.csv
+		--output results/summary/comparison_gpt2_writingprompts_ppl.csv
 
 trends-main:
 	PYTHONPATH=$(PYTHONPATH) python scripts/fit_n_trends.py \
-		--table results/summary/comparison_main_table.csv \
-		--output results/summary/comparison_main_n_trend_models.csv \
-		--figure-dir results/figures/comparison_main/n_trends
+		--table results/summary/comparison_gpt2_writingprompts_table.csv \
+		--output results/summary/comparison_gpt2_writingprompts_n_trend_models.csv \
+		--figure-dir results/figures/comparison_gpt2_writingprompts/n_trends
 
 merge-main:
 	PYTHONPATH=$(PYTHONPATH) python scripts/merge_metric_tables.py \
-		--base results/summary/comparison_main_table.csv \
-		--extras results/summary/comparison_main_extended_metrics.csv results/summary/comparison_main_ppl.csv \
-		--output results/summary/comparison_main_merged_table.csv
+		--base results/summary/comparison_gpt2_writingprompts_table.csv \
+		--extras results/summary/comparison_gpt2_writingprompts_extended_metrics.csv results/summary/comparison_gpt2_writingprompts_ppl.csv \
+		--output results/summary/comparison_gpt2_writingprompts_merged_table.csv
 
 metric-suite-main:
 	PYTHONPATH=$(PYTHONPATH) python scripts/plot_metric_suite.py \
-		--tables results/summary/comparison_main_table.csv results/summary/comparison_main_extended_metrics.csv results/summary/comparison_main_ppl.csv \
-		--output-dir results/figures/comparison_main/metric_suite
+		--tables results/summary/comparison_gpt2_writingprompts_table.csv results/summary/comparison_gpt2_writingprompts_extended_metrics.csv results/summary/comparison_gpt2_writingprompts_ppl.csv \
+		--output-dir results/figures/comparison_gpt2_writingprompts/metric_suite
 
 manifest-main:
 	PYTHONPATH=$(PYTHONPATH) python scripts/write_run_manifest.py \
 		--config configs/comparison_main_template.yaml \
-		--output results/summary/comparison_main_manifest.json
+		--output results/summary/comparison_gpt2_writingprompts_manifest.json
 
 paper-check:
 	PYTHONPATH=$(PYTHONPATH) python scripts/check_paper_ready.py --manuscript paper/manuscript.md
