@@ -9,7 +9,7 @@ generation:
   max_new_tokens: 60
 
 prompts:
-  path: prompts/toy_prompts.jsonl
+  path: prompts/writingprompts_fixed_100.jsonl
   limit: 5
 
 baselines:
