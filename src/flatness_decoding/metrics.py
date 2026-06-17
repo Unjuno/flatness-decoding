@@ -93,6 +93,8 @@ def first_metadata(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "top_p",
         "top_k",
         "num_beams",
+        "highprob_logprob_margin",
+        "highprob_rank_limit",
         "seed",
     ]
     return {key: first.get(key) for key in keys if key in first}
@@ -120,6 +122,15 @@ def summarize_generation_file(path: str | Path) -> dict[str, float | int | str |
     }
 
 
+def value_or_alias(row: dict[str, Any], key: str, alias: str | None = None, default: float = 0.0) -> float:
+    value = row.get(key)
+    if value is None and alias is not None:
+        value = row.get(alias)
+    if value is None:
+        return default
+    return float(value)
+
+
 def summarize_token_log_file(path: str | Path) -> dict[str, float | int | str | None]:
     rows = read_jsonl(path)
     if not rows:
@@ -132,17 +143,35 @@ def summarize_token_log_file(path: str | Path) -> dict[str, float | int | str | 
             "mean_max_candidate_flatness": 0.0,
             "mean_selection_gain": 0.0,
             "mean_candidate_unique_count": 0.0,
+            "mean_chosen_current_logprob": 0.0,
+            "mean_chosen_current_prob": 0.0,
+            "mean_chosen_current_rank": 0.0,
+            "mean_chosen_flatness_quantile": 0.0,
+            "mean_allowed_candidate_count": 0.0,
+            "selection_fallback_rate": 0.0,
+            "mean_candidate_current_logprob": 0.0,
+            "mean_min_candidate_current_rank": 0.0,
+            "mean_max_candidate_current_rank": 0.0,
         }
 
     chosen = [float(row.get("chosen_flatness", 0.0)) for row in rows]
     mean_candidate = [float(row.get("mean_candidate_flatness", 0.0)) for row in rows]
-    min_candidate = [float(row.get("mean_min_candidate_flatness", 0.0)) for row in rows]
-    max_candidate = [float(row.get("mean_max_candidate_flatness", 0.0)) for row in rows]
+    min_candidate = [value_or_alias(row, "min_candidate_flatness", "mean_min_candidate_flatness") for row in rows]
+    max_candidate = [value_or_alias(row, "max_candidate_flatness", "mean_max_candidate_flatness") for row in rows]
     gains = [float(row.get("selection_gain", 0.0)) for row in rows]
     unique_counts = [
         float(row.get("candidate_unique_count", len(set(row.get("candidate_ids", [])))))
         for row in rows
     ]
+    chosen_current_logprob = [float(row.get("chosen_current_logprob", 0.0)) for row in rows]
+    chosen_current_prob = [float(row.get("chosen_current_prob", 0.0)) for row in rows]
+    chosen_current_rank = [float(row.get("chosen_current_rank", 0.0)) for row in rows]
+    chosen_flatness_quantile = [float(row.get("chosen_flatness_quantile", 0.0)) for row in rows]
+    allowed_candidate_count = [float(row.get("allowed_candidate_count", 0.0)) for row in rows]
+    selection_fallback = [1.0 if bool(row.get("selection_fallback", False)) else 0.0 for row in rows]
+    candidate_current_logprob = [float(row.get("mean_candidate_current_logprob", 0.0)) for row in rows]
+    min_candidate_current_rank = [float(row.get("min_candidate_current_rank", 0.0)) for row in rows]
+    max_candidate_current_rank = [float(row.get("max_candidate_current_rank", 0.0)) for row in rows]
 
     return {
         "file": str(path),
@@ -154,4 +183,13 @@ def summarize_token_log_file(path: str | Path) -> dict[str, float | int | str | 
         "mean_max_candidate_flatness": mean_or_none(max_candidate),
         "mean_selection_gain": mean_or_none(gains),
         "mean_candidate_unique_count": mean_or_none(unique_counts),
+        "mean_chosen_current_logprob": mean_or_none(chosen_current_logprob),
+        "mean_chosen_current_prob": mean_or_none(chosen_current_prob),
+        "mean_chosen_current_rank": mean_or_none(chosen_current_rank),
+        "mean_chosen_flatness_quantile": mean_or_none(chosen_flatness_quantile),
+        "mean_allowed_candidate_count": mean_or_none(allowed_candidate_count),
+        "selection_fallback_rate": mean_or_none(selection_fallback),
+        "mean_candidate_current_logprob": mean_or_none(candidate_current_logprob),
+        "mean_min_candidate_current_rank": mean_or_none(min_candidate_current_rank),
+        "mean_max_candidate_current_rank": mean_or_none(max_candidate_current_rank),
     }
