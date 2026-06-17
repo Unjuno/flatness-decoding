@@ -8,7 +8,25 @@ import torch
 from .flatness import flatness_std_from_logits, selection_gain
 from .sampling import sample_candidates_from_logits
 
-DecodeMode = Literal["minflat", "maxflat", "random"]
+DecodeMode = Literal[
+    "minflat",
+    "maxflat",
+    "random",
+    "midflat",
+    "centerflat_q25",
+    "centerflat_q50",
+    "centerflat_q75",
+    "highprob_centerflat",
+]
+
+
+@dataclass
+class SelectionInfo:
+    chosen_index: int
+    chosen_id: int
+    selector_target_quantile: float | None
+    allowed_candidate_indices: list[int]
+    selection_fallback: bool
 
 
 @dataclass
@@ -20,12 +38,27 @@ class StepRecord:
     candidate_ids: list[int]
     candidate_unique_count: int
     candidate_flatness: list[float]
+    candidate_current_logprobs: list[float]
+    candidate_current_probs: list[float]
+    candidate_current_ranks: list[int]
+    chosen_index: int
     chosen_id: int
     chosen_flatness: float
+    chosen_current_logprob: float
+    chosen_current_prob: float
+    chosen_current_rank: int
+    chosen_flatness_quantile: float
+    selector_target_quantile: float | None
+    allowed_candidate_indices: list[int]
+    allowed_candidate_count: int
+    selection_fallback: bool
     mean_candidate_flatness: float
     min_candidate_flatness: float
     max_candidate_flatness: float
     selection_gain: float
+    mean_candidate_current_logprob: float
+    min_candidate_current_rank: int
+    max_candidate_current_rank: int
 
     def to_dict(self) -> dict[str, object]:
         return asdict(self)
@@ -170,24 +203,118 @@ def evaluate_candidates_next_flatness(
     return torch.cat(chunks, dim=0)
 
 
+def current_candidate_distribution_stats(
+    logits_now: torch.Tensor,
+    candidate_ids: torch.Tensor,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Return current-distribution logprobs, probs, and strict-greater ranks."""
+    logits_cpu = logits_now.detach().float().cpu()
+    candidate_ids_cpu = candidate_ids.detach().cpu().long()
+    logprobs_cpu = torch.log_softmax(logits_cpu, dim=-1)
+    candidate_logits = logits_cpu[candidate_ids_cpu]
+    candidate_logprobs = logprobs_cpu[candidate_ids_cpu]
+    candidate_ranks = (logits_cpu.view(1, -1) > candidate_logits.view(-1, 1)).sum(dim=1).long() + 1
+    return candidate_logprobs, candidate_logprobs.exp(), candidate_ranks
+
+
+def selector_quantile(mode: DecodeMode) -> float | None:
+    if mode in {"midflat", "centerflat_q50", "highprob_centerflat"}:
+        return 0.5
+    if mode == "centerflat_q25":
+        return 0.25
+    if mode == "centerflat_q75":
+        return 0.75
+    return None
+
+
+def choose_quantile_index(flatness_cpu: torch.Tensor, candidate_indices: torch.Tensor, q: float) -> int:
+    subset = flatness_cpu[candidate_indices]
+    if subset.numel() == 1:
+        return int(candidate_indices[0].item())
+    target = torch.quantile(subset.float(), q)
+    local_idx = int(torch.argmin((subset.float() - target).abs()).item())
+    return int(candidate_indices[local_idx].item())
+
+
+def flatness_quantile_position(flatness_cpu: torch.Tensor, chosen_index: int) -> float:
+    n = int(flatness_cpu.shape[0])
+    if n <= 1:
+        return 0.0
+    order = torch.argsort(flatness_cpu.float(), stable=True)
+    matches = (order == chosen_index).nonzero(as_tuple=False)
+    if matches.numel() == 0:
+        return 0.0
+    rank = int(matches[0].item())
+    return rank / float(n - 1)
+
+
+def allowed_highprob_indices(
+    candidate_logprobs: torch.Tensor,
+    candidate_ranks: torch.Tensor,
+    highprob_logprob_margin: float | None,
+    highprob_rank_limit: int | None,
+) -> tuple[list[int], bool]:
+    n = int(candidate_logprobs.shape[0])
+    mask = torch.ones(n, dtype=torch.bool)
+    if highprob_logprob_margin is not None:
+        threshold = candidate_logprobs.max() - float(highprob_logprob_margin)
+        mask &= candidate_logprobs >= threshold
+    if highprob_rank_limit is not None:
+        mask &= candidate_ranks <= int(highprob_rank_limit)
+    indices = [int(x) for x in mask.nonzero(as_tuple=False).flatten().tolist()]
+    if indices:
+        return indices, False
+    return list(range(n)), True
+
+
 def choose_candidate(
     candidate_ids: torch.Tensor,
     flatness_values: torch.Tensor,
     mode: DecodeMode,
-) -> tuple[int, int]:
+    candidate_current_logprobs: torch.Tensor | None = None,
+    candidate_current_ranks: torch.Tensor | None = None,
+    highprob_logprob_margin: float | None = None,
+    highprob_rank_limit: int | None = None,
+) -> SelectionInfo:
     if candidate_ids.shape[0] < 1:
         raise ValueError("candidate_ids must contain at least one candidate")
     flatness_cpu = flatness_values.detach().cpu()
     candidate_cpu = candidate_ids.detach().cpu()
+    all_indices = list(range(int(candidate_cpu.shape[0])))
+    allowed_indices = all_indices
+    fallback = False
+
     if mode == "minflat":
         idx = int(torch.argmin(flatness_cpu).item())
     elif mode == "maxflat":
         idx = int(torch.argmax(flatness_cpu).item())
     elif mode == "random":
         idx = 0 if candidate_cpu.shape[0] == 1 else int(torch.randint(0, candidate_cpu.shape[0], (1,)).item())
+    elif mode in {"midflat", "centerflat_q25", "centerflat_q50", "centerflat_q75"}:
+        q = selector_quantile(mode)
+        if q is None:
+            raise ValueError(f"Missing selector quantile for mode: {mode}")
+        idx = choose_quantile_index(flatness_cpu, torch.tensor(all_indices, dtype=torch.long), q)
+    elif mode == "highprob_centerflat":
+        if candidate_current_logprobs is None or candidate_current_ranks is None:
+            raise ValueError("highprob_centerflat requires current logprobs and ranks")
+        allowed_indices, fallback = allowed_highprob_indices(
+            candidate_current_logprobs.detach().cpu(),
+            candidate_current_ranks.detach().cpu(),
+            highprob_logprob_margin,
+            highprob_rank_limit,
+        )
+        idx = choose_quantile_index(flatness_cpu, torch.tensor(allowed_indices, dtype=torch.long), 0.5)
     else:
         raise ValueError(f"Unknown mode: {mode}")
-    return idx, int(candidate_cpu[idx].item())
+
+    return SelectionInfo(
+        chosen_index=idx,
+        chosen_id=int(candidate_cpu[idx].item()),
+        selector_target_quantile=selector_quantile(mode),
+        allowed_candidate_indices=allowed_indices,
+        selection_fallback=fallback,
+    )
 
 
 def banned_candidate_tokens(tokenizer) -> set[int]:
@@ -213,8 +340,10 @@ def generate_flatness_controlled(
     seed: int | None = None,
     candidate_eval_batch_size: int | None = None,
     use_kv_cache_lookahead: bool = False,
+    highprob_logprob_margin: float | None = None,
+    highprob_rank_limit: int | None = None,
 ) -> tuple[str, list[StepRecord]]:
-    """Generate text with Random-N, MinFlat-N, or MaxFlat-N decoding.
+    """Generate text with Random-N and flatness-controlled decoding.
 
     `method="minflat"` is Flatness-N. Official runs default to exact full-prefix
     candidate evaluation with micro-batching. Cached candidate lookahead remains
@@ -250,6 +379,7 @@ def generate_flatness_controlled(
             replacement=True,
             banned_token_ids=banned,
         )
+        candidate_logprobs, candidate_probs, candidate_ranks = current_candidate_distribution_stats(logits_now, candidate_ids)
 
         flatness_values = evaluate_candidates_next_flatness(
             model=model,
@@ -259,11 +389,17 @@ def generate_flatness_controlled(
             past_key_values=past_key_values if use_kv_cache_lookahead else None,
         )
 
-        chosen_index, chosen_id = choose_candidate(
+        selection = choose_candidate(
             candidate_ids=candidate_ids,
             flatness_values=flatness_values,
             mode=method,
+            candidate_current_logprobs=candidate_logprobs,
+            candidate_current_ranks=candidate_ranks,
+            highprob_logprob_margin=highprob_logprob_margin,
+            highprob_rank_limit=highprob_rank_limit,
         )
+        chosen_index = selection.chosen_index
+        chosen_id = selection.chosen_id
 
         chosen_tensor = torch.tensor([[chosen_id]], device=device)
         if use_kv_cache_lookahead and past_key_values is not None:
@@ -285,6 +421,7 @@ def generate_flatness_controlled(
             logits_now = next_logits(model, input_ids)
 
         gain = selection_gain(flatness_values)
+        flatness_cpu = flatness_values.detach().cpu()
         records.append(
             StepRecord(
                 step=step,
@@ -293,13 +430,28 @@ def generate_flatness_controlled(
                 proposal_temperature=proposal_temperature,
                 candidate_ids=[int(x) for x in candidate_ids.detach().cpu().tolist()],
                 candidate_unique_count=len(set(int(x) for x in candidate_ids.detach().cpu().tolist())),
-                candidate_flatness=[float(x) for x in flatness_values.detach().cpu().tolist()],
+                candidate_flatness=[float(x) for x in flatness_cpu.tolist()],
+                candidate_current_logprobs=[float(x) for x in candidate_logprobs.tolist()],
+                candidate_current_probs=[float(x) for x in candidate_probs.tolist()],
+                candidate_current_ranks=[int(x) for x in candidate_ranks.tolist()],
+                chosen_index=chosen_index,
                 chosen_id=chosen_id,
-                chosen_flatness=float(flatness_values[chosen_index].detach().cpu().item()),
+                chosen_flatness=float(flatness_cpu[chosen_index].item()),
+                chosen_current_logprob=float(candidate_logprobs[chosen_index].item()),
+                chosen_current_prob=float(candidate_probs[chosen_index].item()),
+                chosen_current_rank=int(candidate_ranks[chosen_index].item()),
+                chosen_flatness_quantile=flatness_quantile_position(flatness_cpu, chosen_index),
+                selector_target_quantile=selection.selector_target_quantile,
+                allowed_candidate_indices=selection.allowed_candidate_indices,
+                allowed_candidate_count=len(selection.allowed_candidate_indices),
+                selection_fallback=selection.selection_fallback,
                 mean_candidate_flatness=float(flatness_values.float().mean().detach().cpu().item()),
                 min_candidate_flatness=float(flatness_values.float().min().detach().cpu().item()),
                 max_candidate_flatness=float(flatness_values.float().max().detach().cpu().item()),
                 selection_gain=float(gain.detach().cpu().item()),
+                mean_candidate_current_logprob=float(candidate_logprobs.float().mean().item()),
+                min_candidate_current_rank=int(candidate_ranks.min().item()),
+                max_candidate_current_rank=int(candidate_ranks.max().item()),
             )
         )
 
