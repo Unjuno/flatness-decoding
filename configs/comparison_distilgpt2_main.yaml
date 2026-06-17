@@ -1,4 +1,4 @@
-experiment_name: comparison_distilgpt2_main
+experiment_name: comparison_distilgpt2_writingprompts
 model_name: distilgpt2
 model_cache_dir: models/hf
 device: auto
@@ -9,7 +9,7 @@ generation:
   max_new_tokens: 120
 
 prompts:
-  path: prompts/main_prompts.jsonl
+  path: prompts/writingprompts_fixed_100.jsonl
   limit: 100
 
 baselines:
@@ -20,7 +20,7 @@ baselines:
   num_beams: 4
 
 n_trial_methods:
-  methods: [random, minflat, maxflat]
+  methods: [random, minflat, maxflat, midflat, centerflat_q25, centerflat_q50, centerflat_q75, highprob_centerflat]
   n_values: [1, 4, 8, 16, 32]
   proposal_temperature: 1.0
   # Official path: exact full-prefix candidate evaluation, micro-batched for memory.
@@ -28,6 +28,8 @@ n_trial_methods:
   use_kv_cache_lookahead: false
   # Increase to 2 only after confirming memory pressure stays low on smoke.
   candidate_eval_batch_size: 1
+  highprob_logprob_margin: 5.0
+  highprob_rank_limit: 100
 
 runtime:
   inference_mode: false
@@ -42,8 +44,8 @@ runtime:
     python_gc_after_group: false
 
 output:
-  generations_dir: outputs/generations/comparison_distilgpt2_main
-  token_log_dir: outputs/token_logs/comparison_distilgpt2_main
-  summary_csv: results/summary/comparison_distilgpt2_main_metrics.csv
-  table_csv: results/summary/comparison_distilgpt2_main_table.csv
-  figures_dir: results/figures/comparison_distilgpt2_main
+  generations_dir: outputs/generations/comparison_distilgpt2_writingprompts
+  token_log_dir: outputs/token_logs/comparison_distilgpt2_writingprompts
+  summary_csv: results/summary/comparison_distilgpt2_writingprompts_metrics.csv
+  table_csv: results/summary/comparison_distilgpt2_writingprompts_table.csv
+  figures_dir: results/figures/comparison_distilgpt2_writingprompts
