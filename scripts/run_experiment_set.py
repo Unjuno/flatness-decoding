@@ -186,6 +186,12 @@ def run_n_trial_grid(cfg: dict, model, tokenizer, device, prompts: list[dict], n
     if candidate_eval_batch_size is not None:
         candidate_eval_batch_size = int(candidate_eval_batch_size)
     use_kv_cache_lookahead = bool(ntrial_cfg.get("use_kv_cache_lookahead", USE_KV_CACHE_LOOKAHEAD))
+    highprob_logprob_margin = ntrial_cfg.get("highprob_logprob_margin")
+    if highprob_logprob_margin is not None:
+        highprob_logprob_margin = float(highprob_logprob_margin)
+    highprob_rank_limit = ntrial_cfg.get("highprob_rank_limit")
+    if highprob_rank_limit is not None:
+        highprob_rank_limit = int(highprob_rank_limit)
     suffix = shard_suffix(num_shards, shard_index)
 
     for method in ntrial_cfg.get("methods", []):
@@ -231,6 +237,8 @@ def run_n_trial_grid(cfg: dict, model, tokenizer, device, prompts: list[dict], n
                             seed=actual_seed,
                             candidate_eval_batch_size=candidate_eval_batch_size,
                             use_kv_cache_lookahead=use_kv_cache_lookahead,
+                            highprob_logprob_margin=highprob_logprob_margin,
+                            highprob_rank_limit=highprob_rank_limit,
                         )
                     elapsed = time.perf_counter() - started
                     num_output_tokens = len(records)
@@ -247,6 +255,8 @@ def run_n_trial_grid(cfg: dict, model, tokenizer, device, prompts: list[dict], n
                         "proposal_temperature": proposal_temperature,
                         "candidate_eval_batch_size": candidate_eval_batch_size,
                         "use_kv_cache_lookahead": use_kv_cache_lookahead,
+                        "highprob_logprob_margin": highprob_logprob_margin,
+                        "highprob_rank_limit": highprob_rank_limit,
                         "proposal_sampling_device": "cpu",
                         "selection_device": "cpu",
                         "inference_mode": inference_mode,
