@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import random
 from pathlib import Path
+from typing import Any
 
 from datasets import load_dataset
 
@@ -14,12 +15,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dataset", required=True, help="Hugging Face dataset name.")
     parser.add_argument("--config", default=None, help="Optional dataset config/subset name.")
     parser.add_argument("--split", default="validation")
-    parser.add_argument("--text-field", default="text")
-    parser.add_argument("--output", default="prompts/main_prompts.jsonl")
+    parser.add_argument("--prompt-field", default=None, help="Dataset column to use directly as the prompt.")
+    parser.add_argument("--reference-field", default=None, help="Optional dataset column to save as reference/story text.")
+    parser.add_argument("--text-field", default=None, help="Dataset column for legacy long-text prefix extraction.")
+    parser.add_argument("--output", default="prompts/writingprompts_fixed_100.jsonl")
     parser.add_argument("--limit", type=int, default=100)
+    parser.add_argument("--min-prompt-words", type=int, default=1)
     parser.add_argument("--min-words", type=int, default=40)
     parser.add_argument("--prompt-words", type=int, default=32)
-    parser.add_argument("--prefix", default="main")
+    parser.add_argument("--prefix", default="wp")
     parser.add_argument("--shuffle", action="store_true", help="Shuffle eligible examples before selecting prompts.")
     parser.add_argument("--seed", type=int, default=0, help="Seed used when --shuffle is set.")
     return parser.parse_args()
@@ -34,37 +38,71 @@ def make_prompt(text: str, prompt_words: int) -> str:
     return " ".join(words[:prompt_words])
 
 
-def eligible_texts(dataset, text_field: str, min_words: int) -> list[str]:
-    texts: list[str] = []
+def row_text(item: dict[str, Any], field: str) -> str:
+    if field not in item:
+        raise KeyError(f"Dataset row is missing requested field: {field}")
+    return clean_text(str(item.get(field, "")))
+
+
+def eligible_rows(
+    dataset,
+    *,
+    dataset_name: str,
+    split: str,
+    prompt_field: str | None,
+    reference_field: str | None,
+    text_field: str | None,
+    min_prompt_words: int,
+    min_words: int,
+    prompt_words: int,
+) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    legacy_text_field = text_field or (None if prompt_field else "text")
     for item in dataset:
-        raw = str(item.get(text_field, ""))
-        text = clean_text(raw)
-        if len(text.split()) >= min_words:
-            texts.append(text)
-    return texts
+        if prompt_field:
+            prompt = row_text(item, prompt_field)
+            if len(prompt.split()) < min_prompt_words:
+                continue
+        else:
+            if legacy_text_field is None:
+                raise ValueError("Specify --prompt-field or --text-field.")
+            text = row_text(item, legacy_text_field)
+            if len(text.split()) < min_words:
+                continue
+            prompt = make_prompt(text, prompt_words)
+            if len(prompt.split()) < min_prompt_words:
+                continue
+
+        row = {
+            "prompt": prompt,
+            "source_dataset": dataset_name,
+            "source_split": split,
+        }
+        if reference_field:
+            reference = row_text(item, reference_field)
+            if reference:
+                row["reference"] = reference
+        rows.append(row)
+    return rows
 
 
 def build_prompt_rows(
-    texts: list[str],
+    candidates: list[dict[str, str]],
     *,
     limit: int,
-    prompt_words: int,
     prefix: str,
     shuffle: bool = False,
     seed: int = 0,
-) -> list[dict]:
-    selected = list(texts)
+) -> list[dict[str, str]]:
+    selected = list(candidates)
     if shuffle:
         rng = random.Random(seed)
         rng.shuffle(selected)
     selected = selected[:limit]
-    return [
-        {
-            "id": f"{prefix}_{idx:04d}",
-            "prompt": make_prompt(text, prompt_words),
-        }
-        for idx, text in enumerate(selected)
-    ]
+    rows: list[dict[str, str]] = []
+    for idx, row in enumerate(selected, start=1):
+        rows.append({"id": f"{prefix}_{idx:06d}", **row})
+    return rows
 
 
 def main() -> None:
@@ -74,11 +112,20 @@ def main() -> None:
     else:
         dataset = load_dataset(args.dataset, split=args.split)
 
-    texts = eligible_texts(dataset, args.text_field, args.min_words)
-    rows = build_prompt_rows(
-        texts,
-        limit=args.limit,
+    candidates = eligible_rows(
+        dataset,
+        dataset_name=args.dataset,
+        split=args.split,
+        prompt_field=args.prompt_field,
+        reference_field=args.reference_field,
+        text_field=args.text_field,
+        min_prompt_words=args.min_prompt_words,
+        min_words=args.min_words,
         prompt_words=args.prompt_words,
+    )
+    rows = build_prompt_rows(
+        candidates,
+        limit=args.limit,
         prefix=args.prefix,
         shuffle=args.shuffle,
         seed=args.seed,
@@ -86,7 +133,7 @@ def main() -> None:
 
     if len(rows) < args.limit:
         raise RuntimeError(
-            f"Only collected {len(rows)} prompts. Lower --min-words or check dataset/text field."
+            f"Only collected {len(rows)} prompts. Lower min-word thresholds or check dataset fields."
         )
 
     output = Path(args.output)
