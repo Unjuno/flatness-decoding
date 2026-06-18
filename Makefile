@@ -1,4 +1,4 @@
-.PHONY: install install-eval download-models check smoke plan-parallel estimate-tiny estimate-smoke estimate-distilgpt2-main estimate-main clean-tiny clean-smoke clean-distilgpt2-main clean-main comparison-tiny comparison-tiny-parallel validate-tiny comparison-smoke comparison-smoke-parallel validate-smoke build-prompts build-writingprompts build-wikitext-pilot comparison-main comparison-main-parallel validate-main comparison-distilgpt2-main comparison-distilgpt2-main-parallel validate-distilgpt2-main eval-smoke table-smoke extended-smoke ppl-smoke trends-smoke metric-suite-smoke merge-smoke manifest-smoke analyze-smoke token-analyze-smoke plot-smoke extended-distilgpt2-main ppl-distilgpt2-main trends-distilgpt2-main metric-suite-distilgpt2-main merge-distilgpt2-main manifest-distilgpt2-main token-analyze-distilgpt2-main postprocess-distilgpt2-main extended-main ppl-main trends-main metric-suite-main merge-main manifest-main token-analyze-main postprocess-main postprocess-gpt2-lite postprocess-gpt2-medium-micro postprocess-qwen25-05b-micro paper-check paper-check-final export-smoke-table test dvc-init-local
+.PHONY: install install-eval download-models check smoke plan-parallel estimate-tiny estimate-smoke estimate-distilgpt2-main estimate-main clean-tiny clean-smoke clean-distilgpt2-main clean-main comparison-tiny comparison-tiny-parallel validate-tiny comparison-smoke comparison-smoke-parallel validate-smoke build-prompts build-writingprompts build-wikitext-pilot comparison-main comparison-main-parallel validate-main comparison-distilgpt2-main comparison-distilgpt2-main-parallel validate-distilgpt2-main eval-smoke table-smoke extended-smoke ppl-smoke trends-smoke metric-suite-smoke merge-smoke manifest-smoke analyze-smoke token-analyze-smoke plot-smoke postprocess-smoke extended-distilgpt2-main ppl-distilgpt2-main trends-distilgpt2-main metric-suite-distilgpt2-main merge-distilgpt2-main manifest-distilgpt2-main token-analyze-distilgpt2-main postprocess-distilgpt2-main extended-main ppl-main trends-main metric-suite-main merge-main manifest-main token-analyze-main postprocess-main postprocess-gpt2-lite postprocess-gpt2-medium-micro postprocess-qwen25-05b-micro paper-check paper-check-final export-smoke-table test dvc-init-local
 
 PYTHONPATH := src
 VENV_PYTHON := .venv/bin/python
@@ -194,6 +194,16 @@ plot-smoke:
 	PYTHONPATH=$(PYTHONPATH) python scripts/plot_results.py \
 		--input results/summary/comparison_smoke_metrics.csv \
 		--output-dir results/figures/comparison_smoke
+
+postprocess-smoke: validate-smoke manifest-smoke
+	PYTHONPATH=$(PYTHONPATH) python scripts/run_evaluate.py \
+		--input-dir outputs/generations/comparison_smoke \
+		--token-log-dir outputs/token_logs/comparison_smoke \
+		--output results/summary/comparison_smoke_metrics.csv
+	PYTHONPATH=$(PYTHONPATH) python scripts/build_results_table.py \
+		--metrics results/summary/comparison_smoke_metrics.csv \
+		--output results/summary/comparison_smoke_table.csv
+	$(MAKE) analyze-smoke token-analyze-smoke plot-smoke extended-smoke ppl-smoke trends-smoke merge-smoke metric-suite-smoke
 
 postprocess-distilgpt2-main: validate-distilgpt2-main manifest-distilgpt2-main
 	PYTHONPATH=$(PYTHONPATH) python scripts/run_evaluate.py \
@@ -412,3 +422,9 @@ dvc-init-local:
 	dvc init
 	mkdir -p ../flatness-dvc-storage
 	dvc remote add -d localstore ../flatness-dvc-storage
+
+writingprompts-auto:
+	$${PYTHONPATH:-src} .venv/bin/python scripts/run_writingprompts_auto.py --yes
+
+writingprompts-auto-dry:
+	PYTHONPATH=src .venv/bin/python scripts/run_writingprompts_auto.py --dry-run --yes
