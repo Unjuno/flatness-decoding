@@ -15,9 +15,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dataset", required=True, help="Hugging Face dataset name.")
     parser.add_argument("--config", default=None, help="Optional dataset config/subset name.")
     parser.add_argument("--split", default="validation")
+    parser.add_argument("--text-field", default=None, help="Dataset column for legacy long-text prefix extraction.")
     parser.add_argument("--prompt-field", default=None, help="Dataset column to use directly as the prompt.")
     parser.add_argument("--reference-field", default=None, help="Optional dataset column to save as reference/story text.")
-    parser.add_argument("--text-field", default=None, help="Dataset column for legacy long-text prefix extraction.")
     parser.add_argument("--output", default="prompts/writingprompts_fixed_100.jsonl")
     parser.add_argument("--limit", type=int, default=100)
     parser.add_argument("--min-prompt-words", type=int, default=1)
@@ -55,10 +55,10 @@ def eligible_rows(
     min_prompt_words: int,
     min_words: int,
     prompt_words: int,
-) -> list[dict[str, str]]:
-    rows: list[dict[str, str]] = []
+) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
     legacy_text_field = text_field or (None if prompt_field else "text")
-    for item in dataset:
+    for source_row_index, item in enumerate(dataset):
         if prompt_field:
             prompt = row_text(item, prompt_field)
             if len(prompt.split()) < min_prompt_words:
@@ -73,12 +73,18 @@ def eligible_rows(
             if len(prompt.split()) < min_prompt_words:
                 continue
 
-        row = {
+        row: dict[str, Any] = {
             "prompt": prompt,
             "source_dataset": dataset_name,
+            "source_config": None,
             "source_split": split,
+            "source_row_index": source_row_index,
+            "text_field": legacy_text_field,
         }
-        if reference_field:
+        if prompt_field is not None:
+            row["prompt_field"] = prompt_field
+        if reference_field is not None:
+            row["reference_field"] = reference_field
             reference = row_text(item, reference_field)
             if reference:
                 row["reference"] = reference
@@ -87,20 +93,20 @@ def eligible_rows(
 
 
 def build_prompt_rows(
-    candidates: list[dict[str, str]],
+    candidates: list[dict[str, Any]],
     *,
     limit: int,
     prefix: str,
     shuffle: bool = False,
     seed: int = 0,
-) -> list[dict[str, str]]:
+) -> list[dict[str, Any]]:
     selected = list(candidates)
     if shuffle:
         rng = random.Random(seed)
         rng.shuffle(selected)
     selected = selected[:limit]
-    rows: list[dict[str, str]] = []
-    for idx, row in enumerate(selected, start=1):
+    rows: list[dict[str, Any]] = []
+    for idx, row in enumerate(selected):
         rows.append({"id": f"{prefix}_{idx:06d}", **row})
     return rows
 
