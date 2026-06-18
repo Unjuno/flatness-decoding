@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -82,8 +83,11 @@ def run_command(
     line(f"$ {fmt_cmd(cmd, env)}")
     if dry_run:
         return None
+    child_env = os.environ.copy()
+    if env:
+        child_env.update(env)
     try:
-        completed = subprocess.run(cmd, cwd=ROOT, env=env, text=True, capture_output=True, check=True)
+        completed = subprocess.run(cmd, cwd=ROOT, env=child_env, text=True, capture_output=True, check=True)
     except subprocess.CalledProcessError as exc:
         stdout = exc.stdout or ""
         stderr = exc.stderr or ""
