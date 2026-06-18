@@ -1,4 +1,12 @@
 stages:
+  build_writingprompts:
+    cmd: PYTHONPATH=src python scripts/build_prompt_subset.py --dataset euclaise/writingprompts --split validation --prompt-field prompt --reference-field story --output prompts/writingprompts_fixed_100.jsonl --limit 100 --min-prompt-words 3 --prefix wp --shuffle --seed 0
+    deps:
+      - scripts/build_prompt_subset.py
+      - src/flatness_decoding/io_utils.py
+    outs:
+      - prompts/writingprompts_fixed_100.jsonl
+
   comparison_smoke:
     cmd: PYTHONPATH=src python scripts/run_pipeline.py --config configs/comparison_smoke.yaml
     deps:
@@ -24,9 +32,25 @@ stages:
       - scripts/run_evaluate.py
       - scripts/plot_results.py
       - configs/comparison_main_template.yaml
-      - prompts/main_prompts.jsonl
+      - prompts/writingprompts_fixed_100.jsonl
     outs:
-      - outputs/generations/comparison_main
-      - outputs/token_logs/comparison_main
-      - results/summary/comparison_main_metrics.csv
-      - results/figures/comparison_main
+      - outputs/generations/comparison_gpt2_writingprompts
+      - outputs/token_logs/comparison_gpt2_writingprompts
+      - results/summary/comparison_gpt2_writingprompts_metrics.csv
+      - results/figures/comparison_gpt2_writingprompts
+
+  comparison_distilgpt2_main:
+    cmd: PYTHONPATH=src python scripts/run_pipeline.py --config configs/comparison_distilgpt2_main.yaml
+    deps:
+      - src/flatness_decoding
+      - scripts/run_pipeline.py
+      - scripts/run_experiment_set.py
+      - scripts/run_evaluate.py
+      - scripts/plot_results.py
+      - configs/comparison_distilgpt2_main.yaml
+      - prompts/writingprompts_fixed_100.jsonl
+    outs:
+      - outputs/generations/comparison_distilgpt2_writingprompts
+      - outputs/token_logs/comparison_distilgpt2_writingprompts
+      - results/summary/comparison_distilgpt2_writingprompts_metrics.csv
+      - results/figures/comparison_distilgpt2_writingprompts

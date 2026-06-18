@@ -38,7 +38,7 @@ def _swap_used_bytes() -> int | None:
     for line in lines[1:]:
         parts = line.split()
         if len(parts) >= 4:
-            total += int(parts[3])
+            total += int(parts[3]) * 1024
     return total
 
 
