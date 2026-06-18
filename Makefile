@@ -1,6 +1,7 @@
-.PHONY: install install-eval download-models check smoke plan-parallel estimate-tiny estimate-smoke estimate-distilgpt2-main estimate-main clean-tiny clean-smoke clean-distilgpt2-main clean-main comparison-tiny comparison-tiny-parallel validate-tiny comparison-smoke comparison-smoke-parallel validate-smoke build-prompts build-writingprompts build-wikitext-pilot comparison-main comparison-main-parallel validate-main comparison-distilgpt2-main comparison-distilgpt2-main-parallel validate-distilgpt2-main eval-smoke table-smoke extended-smoke ppl-smoke trends-smoke metric-suite-smoke merge-smoke manifest-smoke analyze-smoke token-analyze-smoke plot-smoke extended-distilgpt2-main ppl-distilgpt2-main trends-distilgpt2-main metric-suite-distilgpt2-main merge-distilgpt2-main manifest-distilgpt2-main token-analyze-distilgpt2-main postprocess-distilgpt2-main extended-main ppl-main trends-main metric-suite-main merge-main manifest-main token-analyze-main postprocess-main paper-check paper-check-final export-smoke-table test dvc-init-local
+.PHONY: install install-eval download-models check smoke plan-parallel estimate-tiny estimate-smoke estimate-distilgpt2-main estimate-main clean-tiny clean-smoke clean-distilgpt2-main clean-main comparison-tiny comparison-tiny-parallel validate-tiny comparison-smoke comparison-smoke-parallel validate-smoke build-prompts build-writingprompts build-wikitext-pilot comparison-main comparison-main-parallel validate-main comparison-distilgpt2-main comparison-distilgpt2-main-parallel validate-distilgpt2-main eval-smoke table-smoke extended-smoke ppl-smoke trends-smoke metric-suite-smoke merge-smoke manifest-smoke analyze-smoke token-analyze-smoke plot-smoke extended-distilgpt2-main ppl-distilgpt2-main trends-distilgpt2-main metric-suite-distilgpt2-main merge-distilgpt2-main manifest-distilgpt2-main token-analyze-distilgpt2-main postprocess-distilgpt2-main extended-main ppl-main trends-main metric-suite-main merge-main manifest-main token-analyze-main postprocess-main postprocess-gpt2-lite postprocess-gpt2-medium-micro postprocess-qwen25-05b-micro paper-check paper-check-final export-smoke-table test dvc-init-local
 
 PYTHONPATH := src
+VENV_PYTHON := .venv/bin/python
 
 install:
 	python -m pip install -r requirements-common.txt
@@ -262,6 +263,86 @@ postprocess-main: validate-main manifest-main
 		--metrics results/summary/comparison_gpt2_writingprompts_metrics.csv \
 		--output results/summary/comparison_gpt2_writingprompts_table.csv
 	$(MAKE) analyze-main token-analyze-main plot-main extended-main ppl-main trends-main merge-main metric-suite-main
+
+postprocess-gpt2-lite:
+	PYTHONPATH=$(PYTHONPATH) $(VENV_PYTHON) scripts/run_evaluate.py \
+		--input-dir outputs/generations/comparison_gpt2_lite \
+		--token-log-dir outputs/token_logs/comparison_gpt2_lite \
+		--output results/summary/comparison_gpt2_lite_metrics.csv
+	PYTHONPATH=$(PYTHONPATH) $(VENV_PYTHON) scripts/build_results_table.py \
+		--metrics results/summary/comparison_gpt2_lite_metrics.csv \
+		--output results/summary/comparison_gpt2_lite_table.csv
+	PYTHONPATH=$(PYTHONPATH) $(VENV_PYTHON) scripts/analyze_token_logs.py \
+		--token-log-dir outputs/token_logs/comparison_gpt2_lite \
+		--output-dir results/figures/comparison_gpt2_lite/token_analysis \
+		--summary-output results/summary/comparison_gpt2_lite_token_trace.csv
+	PYTHONPATH=$(PYTHONPATH) $(VENV_PYTHON) scripts/evaluate_extended_metrics.py \
+		--input-dir outputs/generations/comparison_gpt2_lite \
+		--output results/summary/comparison_gpt2_lite_extended_metrics.csv
+	PYTHONPATH=$(PYTHONPATH) $(VENV_PYTHON) scripts/evaluate_ppl.py \
+		--input-dir outputs/generations/comparison_gpt2_lite \
+		--model gpt2 \
+		--output results/summary/comparison_gpt2_lite_ppl.csv
+	PYTHONPATH=$(PYTHONPATH) $(VENV_PYTHON) scripts/merge_metric_tables.py \
+		--base results/summary/comparison_gpt2_lite_table.csv \
+		--extras results/summary/comparison_gpt2_lite_extended_metrics.csv results/summary/comparison_gpt2_lite_ppl.csv \
+		--output results/summary/comparison_gpt2_lite_all_table.csv
+
+postprocess-gpt2-medium-micro:
+	PYTHONPATH=$(PYTHONPATH) $(VENV_PYTHON) scripts/run_evaluate.py \
+		--input-dir outputs/generations/comparison_gpt2_medium_micro \
+		--token-log-dir outputs/token_logs/comparison_gpt2_medium_micro \
+		--output results/summary/comparison_gpt2_medium_micro_metrics.csv
+	PYTHONPATH=$(PYTHONPATH) $(VENV_PYTHON) scripts/build_results_table.py \
+		--metrics results/summary/comparison_gpt2_medium_micro_metrics.csv \
+		--output results/summary/comparison_gpt2_medium_micro_table.csv
+	PYTHONPATH=$(PYTHONPATH) $(VENV_PYTHON) scripts/analyze_token_logs.py \
+		--token-log-dir outputs/token_logs/comparison_gpt2_medium_micro \
+		--output-dir results/figures/comparison_gpt2_medium_micro/token_analysis \
+		--summary-output results/summary/comparison_gpt2_medium_micro_token_trace.csv
+	PYTHONPATH=$(PYTHONPATH) $(VENV_PYTHON) scripts/evaluate_extended_metrics.py \
+		--input-dir outputs/generations/comparison_gpt2_medium_micro \
+		--output results/summary/comparison_gpt2_medium_micro_extended_metrics.csv
+	PYTHONPATH=$(PYTHONPATH) $(VENV_PYTHON) scripts/evaluate_ppl.py \
+		--input-dir outputs/generations/comparison_gpt2_medium_micro \
+		--model gpt2-medium \
+		--output results/summary/comparison_gpt2_medium_micro_ppl.csv
+	PYTHONPATH=$(PYTHONPATH) $(VENV_PYTHON) scripts/merge_metric_tables.py \
+		--base results/summary/comparison_gpt2_medium_micro_table.csv \
+		--extras results/summary/comparison_gpt2_medium_micro_extended_metrics.csv results/summary/comparison_gpt2_medium_micro_ppl.csv \
+		--output results/summary/comparison_gpt2_medium_micro_all_table.csv
+
+postprocess-qwen25-05b-micro:
+	PYTHONPATH=$(PYTHONPATH) $(VENV_PYTHON) scripts/run_evaluate.py \
+		--input-dir outputs/generations/comparison_qwen25_05b_micro \
+		--token-log-dir outputs/token_logs/comparison_qwen25_05b_micro \
+		--output results/summary/comparison_qwen25_05b_micro_metrics.csv
+	PYTHONPATH=$(PYTHONPATH) $(VENV_PYTHON) scripts/build_results_table.py \
+		--metrics results/summary/comparison_qwen25_05b_micro_metrics.csv \
+		--output results/summary/comparison_qwen25_05b_micro_table.csv
+	PYTHONPATH=$(PYTHONPATH) $(VENV_PYTHON) scripts/analyze_token_logs.py \
+		--token-log-dir outputs/token_logs/comparison_qwen25_05b_micro \
+		--output-dir results/figures/comparison_qwen25_05b_micro/token_analysis \
+		--summary-output results/summary/comparison_qwen25_05b_micro_token_trace.csv
+	PYTHONPATH=$(PYTHONPATH) $(VENV_PYTHON) scripts/evaluate_extended_metrics.py \
+		--input-dir outputs/generations/comparison_qwen25_05b_micro \
+		--output results/summary/comparison_qwen25_05b_micro_extended_metrics.csv
+	@if [ -d models/hf/Qwen__Qwen2.5-0.5B ]; then \
+		PYTHONPATH=$(PYTHONPATH) $(VENV_PYTHON) scripts/evaluate_ppl.py \
+			--input-dir outputs/generations/comparison_qwen25_05b_micro \
+			--model Qwen__Qwen2.5-0.5B \
+			--output results/summary/comparison_qwen25_05b_micro_ppl.csv; \
+		PYTHONPATH=$(PYTHONPATH) $(VENV_PYTHON) scripts/merge_metric_tables.py \
+			--base results/summary/comparison_qwen25_05b_micro_table.csv \
+			--extras results/summary/comparison_qwen25_05b_micro_extended_metrics.csv results/summary/comparison_qwen25_05b_micro_ppl.csv \
+			--output results/summary/comparison_qwen25_05b_micro_all_table.csv; \
+	else \
+		echo "PPL skipped for comparison_qwen25_05b_micro: model unavailable locally"; \
+		PYTHONPATH=$(PYTHONPATH) $(VENV_PYTHON) scripts/merge_metric_tables.py \
+			--base results/summary/comparison_qwen25_05b_micro_table.csv \
+			--extras results/summary/comparison_qwen25_05b_micro_extended_metrics.csv \
+			--output results/summary/comparison_qwen25_05b_micro_all_table.csv; \
+	fi
 
 analyze-main:
 	PYTHONPATH=$(PYTHONPATH) python scripts/analyze_results.py \

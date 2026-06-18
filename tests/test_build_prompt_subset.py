@@ -21,6 +21,7 @@ def test_eligible_rows_filters_short_examples_and_adds_provenance():
     rows = eligible_rows(
         TinyDataset(),
         dataset_name="wikitext",
+        source_config="wikitext-103-raw-v1",
         split="validation",
         prompt_field=None,
         reference_field="reference",
@@ -31,7 +32,7 @@ def test_eligible_rows_filters_short_examples_and_adds_provenance():
     )
     assert len(rows) == 3
     assert rows[0]["source_dataset"] == "wikitext"
-    assert rows[0]["source_config"] is None
+    assert rows[0]["source_config"] == "wikitext-103-raw-v1"
     assert rows[0]["source_split"] == "validation"
     assert rows[0]["source_row_index"] == 1
     assert rows[0]["text_field"] == "text"

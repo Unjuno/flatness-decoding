@@ -48,6 +48,7 @@ def eligible_rows(
     dataset,
     *,
     dataset_name: str,
+    source_config: str | None,
     split: str,
     prompt_field: str | None,
     reference_field: str | None,
@@ -76,7 +77,7 @@ def eligible_rows(
         row: dict[str, Any] = {
             "prompt": prompt,
             "source_dataset": dataset_name,
-            "source_config": None,
+            "source_config": source_config,
             "source_split": split,
             "source_row_index": source_row_index,
             "text_field": legacy_text_field,
@@ -121,6 +122,7 @@ def main() -> None:
     candidates = eligible_rows(
         dataset,
         dataset_name=args.dataset,
+        source_config=args.config,
         split=args.split,
         prompt_field=args.prompt_field,
         reference_field=args.reference_field,

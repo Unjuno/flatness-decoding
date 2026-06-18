@@ -16,6 +16,8 @@ from flatness_decoding.io_utils import read_jsonl, write_jsonl
 from flatness_decoding.memory import cleanup_config, cleanup_device_cache
 from flatness_decoding.metrics import continuation_from_text
 from flatness_decoding.model_io import load_causal_lm
+from flatness_decoding.resources import check_runtime_resources, format_bytes
+from flatness_decoding.devices import resolve_device
 from flatness_decoding.resume import baseline_output_complete, ntrial_output_complete, resume_config
 
 
@@ -28,6 +30,9 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--inference-mode", action="store_true")
     p.add_argument("--resume", action="store_true")
     p.add_argument("--no-resume", action="store_true")
+    p.add_argument("--allow-swap", action="store_true", help="Allow execution even if system swap is in use.")
+    p.add_argument("--min-free-ram-gb", type=float, default=2.0, help="Abort if available RAM is below this threshold.")
+    p.add_argument("--min-free-vram-gb", type=float, default=1.0, help="Abort if free CUDA VRAM is below this threshold.")
     return p.parse_args()
 
 
@@ -48,6 +53,31 @@ def apply_overrides(cfg: dict, args: argparse.Namespace) -> dict:
     if args.no_resume:
         cfg.setdefault("runtime", {}).setdefault("resume", {})["skip_complete"] = False
     return cfg
+
+
+def preflight_resource_check(args: argparse.Namespace, device_name: str) -> None:
+    resources = check_runtime_resources()
+    if resources.swap_used_bytes and resources.swap_used_bytes > 0 and not args.allow_swap:
+        raise SystemExit(
+            f"swap is in use ({format_bytes(resources.swap_used_bytes)}). Re-run with --allow-swap if intentional."
+        )
+
+    if resources.available_ram_bytes is not None:
+        min_free_ram_bytes = int(args.min_free_ram_gb * 1024**3)
+        if resources.available_ram_bytes < min_free_ram_bytes:
+            raise SystemExit(
+                f"available RAM too low: {format_bytes(resources.available_ram_bytes)} < {args.min_free_ram_gb:.2f} GiB"
+            )
+
+    if resolve_device(device_name).type == "cuda":
+        if resources.free_vram_bytes is not None:
+            min_free_vram_bytes = int(args.min_free_vram_gb * 1024**3)
+            if resources.free_vram_bytes < min_free_vram_bytes:
+                raise SystemExit(
+                    f"free VRAM too low: {format_bytes(resources.free_vram_bytes)} < {args.min_free_vram_gb:.2f} GiB"
+                )
+        else:
+            print("warning: CUDA VRAM free-space check unavailable; continuing without a VRAM preflight")
 
 
 def inference_mode_enabled(cfg: dict) -> bool:
@@ -302,6 +332,7 @@ def main() -> None:
         prompts = prompts[: int(limit)]
     prompts = select_prompt_shard(prompts, args.num_shards, args.shard_index)
     print(f"Loaded {len(prompts)} prompts for shard {args.shard_index}/{args.num_shards} from {cfg['prompts']['path']}")
+    preflight_resource_check(args, str(cfg.get("device", "auto")))
     model, tokenizer, device = load_causal_lm(
         model_name=cfg["model_name"],
         device_name=cfg.get("device", "auto"),

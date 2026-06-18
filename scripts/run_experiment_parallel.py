@@ -31,6 +31,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--inference-mode", action="store_true", help="Run shard generation calls inside torch.inference_mode().")
     parser.add_argument("--resume", action="store_true", help="Skip complete output groups when possible.")
     parser.add_argument("--no-resume", action="store_true", help="Disable complete-output skipping even if config enables it.")
+    parser.add_argument("--allow-swap", action="store_true", help="Allow execution even if system swap is in use.")
+    parser.add_argument("--min-free-ram-gb", type=float, default=2.0, help="Abort if available RAM is below this threshold.")
+    parser.add_argument("--min-free-vram-gb", type=float, default=1.0, help="Abort if free CUDA VRAM is below this threshold.")
     parser.add_argument("--python", default=sys.executable)
     parser.add_argument("--dry-run", action="store_true", help="Print resolved plan without running shards.")
     return parser.parse_args()
@@ -56,6 +59,9 @@ def run_shard(
     inference_mode: bool,
     resume: bool,
     no_resume: bool,
+    allow_swap: bool,
+    min_free_ram_gb: float,
+    min_free_vram_gb: float,
 ) -> tuple[int, int]:
     env = os.environ.copy()
     env["PYTHONPATH"] = "src" + os.pathsep + env.get("PYTHONPATH", "")
@@ -80,6 +86,12 @@ def run_shard(
         cmd.append("--resume")
     if no_resume:
         cmd.append("--no-resume")
+    if allow_swap:
+        cmd.append("--allow-swap")
+    if min_free_ram_gb is not None:
+        cmd.extend(["--min-free-ram-gb", str(min_free_ram_gb)])
+    if min_free_vram_gb is not None:
+        cmd.extend(["--min-free-vram-gb", str(min_free_vram_gb)])
 
     print("+ " + " ".join(cmd))
     completed = subprocess.run(cmd, env=env)
@@ -136,6 +148,9 @@ def main() -> None:
                 args.inference_mode,
                 args.resume,
                 args.no_resume,
+                args.allow_swap,
+                args.min_free_ram_gb,
+                args.min_free_vram_gb,
             )
             for shard_idx in range(num_shards)
         ]
