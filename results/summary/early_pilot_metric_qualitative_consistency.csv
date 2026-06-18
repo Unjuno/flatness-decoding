@@ -1,0 +1,25 @@
+experiment,method,n_trials,numeric_signal,qualitative_signal,consistent,notes
+comparison_gpt2_lite,random,1,baseline or control condition,mostly natural at n=1; later n values readable but increasingly drift-prone,yes,Baseline continuation; natural but not especially distinctive.
+comparison_gpt2_lite,minflat,1,identical to random at n=1,identical to random at n=1,yes,n=1 is identical to random/maxflat; not informative for control.
+comparison_gpt2_lite,maxflat,1,identical to random at n=1,identical to random at n=1,yes,n=1 is identical to random/minflat; not informative for control.
+comparison_gpt2_lite,random,8,baseline or control condition,mostly natural at n=1; later n values readable but increasingly drift-prone,yes,Generally readable but drifts and becomes repetitive.
+comparison_gpt2_lite,minflat,8,flatness lower than random; diversity lower; repetition higher,visibly broken or garbled,yes,Symbol-heavy garbling; visibly broken.
+comparison_gpt2_lite,maxflat,8,flatness higher than random; diversity slightly lower or mixed; repetition usually lower or flat,mostly natural but more diffuse / off-target,mostly,"Mostly readable, but diffuse and less focused."
+comparison_gpt2_lite,random,16,baseline or control condition,mostly natural at n=1; later n values readable but increasingly drift-prone,yes,Readable long continuation with some odd lexical drift.
+comparison_gpt2_lite,minflat,16,flatness lower than random; diversity lower; repetition higher,visibly broken or garbled,yes,Severe garbling and repetition; unusable.
+comparison_gpt2_lite,maxflat,16,flatness higher than random; diversity slightly lower or mixed; repetition usually lower or flat,mostly natural but more diffuse / off-target,mostly,Readable but somewhat diffuse / off-target.
+comparison_gpt2_medium_micro,random,1,baseline or control condition,mostly natural at n=1; later n values readable but increasingly drift-prone,yes,Baseline continuation; natural and coherent.
+comparison_gpt2_medium_micro,minflat,1,identical to random at n=1,identical to random at n=1,yes,n=1 is identical to random/maxflat; not informative.
+comparison_gpt2_medium_micro,maxflat,1,identical to random at n=1,identical to random at n=1,yes,n=1 is identical to random/minflat; not informative.
+comparison_gpt2_medium_micro,random,4,baseline or control condition,mostly natural at n=1; later n values readable but increasingly drift-prone,yes,Generally natural continuation.
+comparison_gpt2_medium_micro,minflat,4,flatness lower than random; diversity lower; repetition higher,visibly broken or garbled,yes,Severe symbol/character noise; broken output.
+comparison_gpt2_medium_micro,maxflat,4,flatness higher than random; diversity slightly lower or mixed; repetition usually lower or flat,mostly natural but more diffuse / off-target,mostly,Readable but somewhat diffuse and factually odd.
+comparison_gpt2_medium_micro,random,16,baseline or control condition,mostly natural at n=1; later n values readable but increasingly drift-prone,yes,Readable despite some odd phrasing; coherent enough.
+comparison_gpt2_medium_micro,minflat,16,flatness lower than random; diversity lower; repetition higher,visibly broken or garbled,yes,Severe symbol noise and near-unusable output.
+comparison_gpt2_medium_micro,maxflat,16,flatness higher than random; diversity slightly lower or mixed; repetition usually lower or flat,mostly natural but more diffuse / off-target,mostly,Somewhat natural but diffuse; less focused than random.
+comparison_qwen25_05b_micro,random,1,baseline or control condition,mostly natural at n=1; later n values readable but increasingly drift-prone,yes,Baseline continuation; natural and coherent.
+comparison_qwen25_05b_micro,minflat,1,identical to random at n=1,identical to random at n=1,yes,n=1 is identical to random/maxflat; not informative.
+comparison_qwen25_05b_micro,maxflat,1,identical to random at n=1,identical to random at n=1,yes,n=1 is identical to random/minflat; not informative.
+comparison_qwen25_05b_micro,random,16,baseline or control condition,mostly natural at n=1; later n values readable but increasingly drift-prone,yes,Readable with slight topic drift.
+comparison_qwen25_05b_micro,minflat,16,flatness lower than random; diversity mixed; repetition not always higher,visibly broken or garbled,yes,Visible character-level corruption / noise.
+comparison_qwen25_05b_micro,maxflat,16,flatness higher than random; diversity slightly lower or mixed; repetition usually lower or flat,mostly natural but more diffuse / off-target,mostly,Mostly readable but diffuse and not especially grounded.
