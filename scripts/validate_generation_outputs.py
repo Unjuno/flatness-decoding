@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Any
 
 from flatness_decoding.io_utils import read_jsonl
-from flatness_decoding.metrics import analysis_text_from_row
 
 
 DEFAULT_REQUIRED_METHODS = [
@@ -22,6 +21,30 @@ DEFAULT_REQUIRED_METHODS = [
 ]
 
 DEFAULT_REQUIRED_TOKEN_LOG_METHODS = ["random", "minflat", "maxflat"]
+
+
+def canonical_generated_text(row: dict[str, Any]) -> str:
+    for key in ("continuation_text", "generated_text", "output_text", "text"):
+        value = row.get(key)
+        if value is None:
+            continue
+        text = str(value)
+        if text.strip():
+            return text
+    return ""
+
+
+def canonical_output_tokens(row: dict[str, Any]) -> int | None:
+    value = row.get("num_output_tokens")
+    if value is not None:
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return None
+    tokens = row.get("output_tokens")
+    if isinstance(tokens, list):
+        return len(tokens)
+    return None
 
 
 def parse_args() -> argparse.Namespace:
@@ -75,11 +98,14 @@ def validate_generation_rows(
         for key in required:
             if key not in row:
                 errors.append(f"row {idx} missing required key {key} in {row.get('_file')}")
-        if not allow_missing_continuation and "continuation_text" not in row:
-            errors.append(f"row {idx} missing continuation_text in {row.get('_file')}")
-        analysis_text = analysis_text_from_row(row)
-        if row.get("num_output_tokens") not in (None, 0) and analysis_text == "":
-            message = f"row {idx} has empty analysis text but nonzero output tokens in {row.get('_file')}"
+        if not allow_missing_continuation and not any(
+            str(row.get(key, "")).strip() for key in ("continuation_text", "generated_text", "output_text", "text")
+        ):
+            errors.append(f"row {idx} missing generated continuation text in {row.get('_file')}")
+        output_tokens = canonical_output_tokens(row)
+        generated_text = canonical_generated_text(row)
+        if output_tokens and output_tokens > 0 and generated_text == "":
+            message = f"row {idx} has empty generated text but nonzero output tokens in {row.get('_file')}"
             if allow_empty_analysis_text:
                 warnings.append(message)
             else:

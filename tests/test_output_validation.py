@@ -40,7 +40,7 @@ def test_validate_generation_rows_accepts_valid_row():
     assert warnings == []
 
 
-def test_validate_generation_rows_rejects_missing_continuation():
+def test_validate_generation_rows_accepts_missing_continuation_with_text_fallback():
     row = valid_generation_row()
     row.pop("continuation_text")
     errors, warnings = validate_generation_rows(
@@ -48,20 +48,38 @@ def test_validate_generation_rows_rejects_missing_continuation():
         allow_missing_continuation=False,
         allow_empty_analysis_text=False,
     )
-    assert any("continuation_text" in error for error in errors)
+    assert errors == []
     assert warnings == []
 
 
-def test_validate_generation_rows_can_warn_on_empty_analysis_text():
+def test_validate_generation_rows_accepts_text_fallback():
     row = valid_generation_row()
-    row["continuation_text"] = ""
+    row.pop("continuation_text")
+    row.pop("generated_text", None)
+    row.pop("output_text", None)
+    row["text"] = "Hello world"
     errors, warnings = validate_generation_rows(
         [row],
         allow_missing_continuation=False,
-        allow_empty_analysis_text=True,
+        allow_empty_analysis_text=False,
     )
     assert errors == []
-    assert any("empty analysis text" in warning for warning in warnings)
+    assert warnings == []
+
+
+def test_validate_generation_rows_rejects_empty_generated_text_with_tokens():
+    row = valid_generation_row()
+    row["continuation_text"] = ""
+    row["generated_text"] = ""
+    row["output_text"] = ""
+    row["text"] = ""
+    errors, warnings = validate_generation_rows(
+        [row],
+        allow_missing_continuation=False,
+        allow_empty_analysis_text=False,
+    )
+    assert any("empty generated text" in error for error in errors)
+    assert warnings == []
 
 
 def test_validate_required_methods_detects_missing_method():
