@@ -34,3 +34,5 @@ venv/
 !/results/README.md
 !/results/summary/
 !/results/figures/
+artifacts/*.tar.gz
+artifacts/*.sha256
