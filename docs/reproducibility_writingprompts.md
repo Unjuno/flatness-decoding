@@ -4,9 +4,8 @@ This note records the completed WritingPrompts runs and the associated artifacts
 
 ## Completed configs
 
-- `configs/comparison_distilgpt2_main.yaml`
-- `configs/comparison_main_template.yaml` is the GPT-2 main template used for `comparison_gpt2_writingprompts`
-- `configs/comparison_distilgpt2_main.yaml` is the DistilGPT-2 main config used for `comparison_distilgpt2_writingprompts`
+- GPT-2 main config: `configs/comparison_main_template.yaml` for `comparison_gpt2_writingprompts`
+- DistilGPT-2 main config: `configs/comparison_distilgpt2_main.yaml` for `comparison_distilgpt2_writingprompts`
 
 ## Prompt artifact
 
