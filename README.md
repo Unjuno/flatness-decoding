@@ -27,6 +27,11 @@ notes/remote_execution.md
 notes/output_cleaning.md
 ```
 
+WritingPrompts results and interpretation:
+
+- [results/summary/writingprompts_experiment_summary.md](/Users/taka/repos/flatness-decoding/results/summary/writingprompts_experiment_summary.md)
+- [paper/writingprompts_results.md](/Users/taka/repos/flatness-decoding/paper/writingprompts_results.md)
+
 ## Core idea
 
 At generation step `t`, given the current context `x_t`:
