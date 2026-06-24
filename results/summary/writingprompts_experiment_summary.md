@@ -9,20 +9,23 @@ This makes the method a decoding-time control over successor logit dispersion, n
 
 ## Key quantitative pattern
 ### distilgpt2
-- random: mean_chosen_flatness=3.150 if available, distinct-2=0.896, repetition-4=0.034, runtime=65.49s
-- minflat: mean_chosen_flatness=1.751 if available, distinct-2=0.845, repetition-4=0.067, runtime=89.56s
-- maxflat: mean_chosen_flatness=3.950 if available, distinct-2=0.788, repetition-4=0.056, runtime=49.20s
-- centerflat_q50: mean_chosen_flatness=3.315 if available, distinct-2=0.637, repetition-4=0.262, runtime=64.27s
-- centerflat_q75: mean_chosen_flatness=3.486 if available, distinct-2=0.715, repetition-4=0.134, runtime=64.97s
-- highprob_centerflat: mean_chosen_flatness=3.346 if available, distinct-2=0.418, repetition-4=0.475, runtime=62.28s
+- random: mean_chosen_flatness=3.150; for N-trial rows this is the mean successor logit standard deviation of the selected candidate, distinct-2=0.896, repetition-4=0.034, runtime=65.49s
+- minflat: mean_chosen_flatness=1.751; for N-trial rows this is the mean successor logit standard deviation of the selected candidate, distinct-2=0.845, repetition-4=0.067, runtime=89.56s
+- maxflat: mean_chosen_flatness=3.950; for N-trial rows this is the mean successor logit standard deviation of the selected candidate, distinct-2=0.788, repetition-4=0.056, runtime=49.20s
+- centerflat_q50: mean_chosen_flatness=3.315; for N-trial rows this is the mean successor logit standard deviation of the selected candidate, distinct-2=0.637, repetition-4=0.262, runtime=64.27s
+- centerflat_q75: mean_chosen_flatness=3.486; for N-trial rows this is the mean successor logit standard deviation of the selected candidate, distinct-2=0.715, repetition-4=0.134, runtime=64.97s
+- highprob_centerflat: mean_chosen_flatness=3.346; for N-trial rows this is the mean successor logit standard deviation of the selected candidate, distinct-2=0.418, repetition-4=0.475, runtime=62.28s
 
 ### gpt2
-- random: mean_chosen_flatness=3.055 if available, distinct-2=0.924, repetition-4=0.009, runtime=142.79s
-- minflat: mean_chosen_flatness=1.656 if available, distinct-2=0.815, repetition-4=0.078, runtime=116.58s
-- maxflat: mean_chosen_flatness=4.141 if available, distinct-2=0.849, repetition-4=0.017, runtime=87.76s
-- centerflat_q50: mean_chosen_flatness=3.298 if available, distinct-2=0.808, repetition-4=0.060, runtime=83.51s
-- centerflat_q75: mean_chosen_flatness=3.636 if available, distinct-2=0.789, repetition-4=0.037, runtime=71.31s
-- highprob_centerflat: mean_chosen_flatness=3.519 if available, distinct-2=0.584, repetition-4=0.221, runtime=70.52s
+- random: mean_chosen_flatness=3.055; for N-trial rows this is the mean successor logit standard deviation of the selected candidate, distinct-2=0.924, repetition-4=0.009, runtime=142.79s
+- minflat: mean_chosen_flatness=1.656; for N-trial rows this is the mean successor logit standard deviation of the selected candidate, distinct-2=0.815, repetition-4=0.078, runtime=116.58s
+- maxflat: mean_chosen_flatness=4.141; for N-trial rows this is the mean successor logit standard deviation of the selected candidate, distinct-2=0.849, repetition-4=0.017, runtime=87.76s
+- centerflat_q50: mean_chosen_flatness=3.298; for N-trial rows this is the mean successor logit standard deviation of the selected candidate, distinct-2=0.808, repetition-4=0.060, runtime=83.51s
+- centerflat_q75: mean_chosen_flatness=3.636; for N-trial rows this is the mean successor logit standard deviation of the selected candidate, distinct-2=0.789, repetition-4=0.037, runtime=71.31s
+- highprob_centerflat: mean_chosen_flatness=3.519; for N-trial rows this is the mean successor logit standard deviation of the selected candidate, distinct-2=0.584, repetition-4=0.221, runtime=70.52s
+
+## Selector note
+`midflat` is implementation-equivalent to `centerflat_q50` in the current selector family. In paper discussion it should be treated as a redundant or auxiliary label unless there is a specific reason to retain both names.
 
 ## Qualitative findings
 The qualitative audits are LLM-assisted exploratory audits, not formal human evaluations.
