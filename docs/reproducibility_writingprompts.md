@@ -5,8 +5,8 @@ This note records the completed WritingPrompts runs and the associated artifacts
 ## Completed configs
 
 - `configs/comparison_distilgpt2_main.yaml`
-- `configs/comparison_gpt2_writingprompts` is the corresponding GPT-2 WritingPrompts configuration used in the completed run
-- `configs/comparison_distilgpt2_writingprompts` is represented via the prompt artifact and completed outputs for the DistilGPT-2 WritingPrompts run
+- `configs/comparison_main_template.yaml` is the GPT-2 main template used for `comparison_gpt2_writingprompts`
+- `configs/comparison_distilgpt2_main.yaml` is the DistilGPT-2 main config used for `comparison_distilgpt2_writingprompts`
 
 ## Prompt artifact
 
@@ -79,6 +79,12 @@ Then record checksums with:
 
 ```bash
 sha256sum artifacts/*.tar.gz > artifacts/SHA256SUMS.txt
+```
+
+On macOS, use `shasum -a 256` if `sha256sum` is unavailable:
+
+```bash
+shasum -a 256 artifacts/*.tar.gz > artifacts/SHA256SUMS.txt
 ```
 
 ## Preservation caveat

@@ -40,7 +40,16 @@ tar -C "${root_dir}" -czf "${archive_path}" \
   prompts/writingprompts_fixed_100.jsonl \
   configs
 
-sha256sum "${archive_path}" > "${checksum_path}"
+if command -v sha256sum >/dev/null 2>&1; then
+  checksum_cmd=(sha256sum)
+elif command -v shasum >/dev/null 2>&1; then
+  checksum_cmd=(shasum -a 256)
+else
+  printf 'missing checksum tool: need sha256sum or shasum -a 256\n' >&2
+  exit 1
+fi
+
+"${checksum_cmd[@]}" "${archive_path}" > "${checksum_path}"
 
 archive_size="$(du -h "${archive_path}" | awk '{print $1}')"
 printf 'archive: %s\n' "${archive_path}"
