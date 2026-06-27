@@ -1,8 +1,8 @@
 # flatness-decoding
 
-Experimental evaluation of **next-state logit flatness** as a decoding criterion for autoregressive language generation.
+Experimental evaluation of **successor logit dispersion** as a decoding-time diagnostic/control signal for autoregressive language generation.
 
-This repository is a private research workspace for evaluating a decoding controller called **Flatness-N Decoding**. The goal is not to claim universal improvement, but to test how selecting tokens by next-state logit flatness changes generation trajectories, repetition, diversity, quality proxies, and compute cost.
+This repository is a private research workspace for evaluating candidate-induced successor logit dispersion as a decoding-time signal. The goal is not to claim universal improvement, but to characterize how selecting tokens by successor-state distribution shape changes generation trajectories, repetition, diversity, likelihood-related metrics, failure modes, and compute cost.
 
 ## WritingPrompts experiment status
 
@@ -52,15 +52,15 @@ At generation step `t`, given the current context `x_t`:
 1. Sample `N` candidate tokens from a proposal distribution.
 2. Temporarily append each candidate token.
 3. Run the model one step ahead for each candidate.
-4. Compute the standard deviation of the next-state logits.
-5. Select the candidate whose next-state logits are flattest.
+4. Compute successor logit dispersion, the standard deviation of the next-state logits.
+5. Select a candidate according to a selector over successor logit dispersion, such as low-dispersion (`minflat`), high-dispersion (`maxflat`), center-region (`centerflat_q50` / `centerflat_q75`), or likelihood-constrained center-region (`highprob_centerflat`).
 
 Formally:
 
 ```text
-y_1, ..., y_N ~ q(y | x_t)
-F(y_j) = Std(z(x_t + y_j))
-y_t* = argmin_j F(y_j)
+y_1, ..., y_N ~ q(y | context)
+D(y_j) = Std(logits(. | context + y_j))
+y_t* = selector({(y_j, D(y_j))}_{j=1}^N)
 ```
 
 If only probabilities are available, `Std(log p)` can be used because `log p_i = z_i - C`, so `Std(log p) = Std(z)`.

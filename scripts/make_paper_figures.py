@@ -18,7 +18,6 @@ PAPER_DIR = ROOT / "paper" / "figures"
 PAPER_DIR.mkdir(parents=True, exist_ok=True)
 
 GPT2_MERGED = ROOT / "results" / "summary" / "comparison_gpt2_writingprompts_merged_table.csv"
-KEY_RESULTS = ROOT / "results" / "summary" / "writingprompts_key_results.csv"
 CASE_REVIEW = ROOT / "results" / "analysis" / "writingprompts_gpt2_small_case_review_summary.csv"
 
 
@@ -297,13 +296,10 @@ def maybe_plot_case_review(df: pd.DataFrame) -> bool:
 def main() -> int:
     if not GPT2_MERGED.exists():
         raise SystemExit(f"missing input: {GPT2_MERGED}")
-    if not KEY_RESULTS.exists():
-        raise SystemExit(f"missing input: {KEY_RESULTS}")
     if not CASE_REVIEW.exists():
         raise SystemExit(f"missing input: {CASE_REVIEW}")
 
     gpt2 = read_csv(GPT2_MERGED)
-    key = read_csv(KEY_RESULTS)
     case = read_csv(CASE_REVIEW)
 
     flatness = generate_flatness_vs_n(gpt2)
