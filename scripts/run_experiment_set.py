@@ -338,6 +338,7 @@ def main() -> None:
         device_name=cfg.get("device", "auto"),
         dtype_name=cfg.get("dtype", "auto"),
         cache_dir=cfg.get("model_cache_dir", "models/hf"),
+        local_files_only=bool((cfg.get("gemma_smoke", {}) or {}).get("local_files_only", False)),
     )
     run_baseline_grid(cfg, model, tokenizer, device, prompts, args.num_shards, args.shard_index)
     run_n_trial_grid(cfg, model, tokenizer, device, prompts, args.num_shards, args.shard_index)
