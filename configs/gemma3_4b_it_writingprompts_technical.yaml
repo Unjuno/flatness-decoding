@@ -1,17 +1,50 @@
-status: planned
-experiment_role: modern instruct-model sanity check
-model_id: google/gemma-3-4b-it
-prompt_file: prompts/writingprompts_fixed_100.jsonl
-num_prompts: 2
-n_trials: 4
-max_new_tokens: 16
-methods:
-  - top_p
-  - random
-  - minflat
-  - maxflat
-  - centerflat_q50
+experiment_name: gemma3_4b_it_writingprompts_technical
+model_name: google/gemma-3-4b-it
+model_cache_dir: models/hf
 device: auto
 dtype: auto
-local_files_only: false
-output_dir: results/gemma3_4b_it_smoke/technical
+seeds: [0]
+
+generation:
+  max_new_tokens: 16
+
+prompts:
+  path: prompts/writingprompts_fixed_100.jsonl
+  limit: 2
+
+baselines:
+  methods: [top_p]
+  temperature: 1.2
+  top_p: 0.9
+  top_k: 50
+  num_beams: 4
+
+n_trial_methods:
+  methods: [random, minflat, maxflat, centerflat_q50]
+  n_values: [4]
+  proposal_temperature: 1.0
+  use_kv_cache_lookahead: false
+  candidate_eval_batch_size: 1
+  highprob_logprob_margin: 5.0
+  highprob_rank_limit: 100
+
+runtime:
+  inference_mode: false
+  resume:
+    skip_complete: true
+  cleanup:
+    device_cache_after_prompt: false
+    device_cache_after_group: true
+    python_gc_after_group: false
+
+output:
+  generations_dir: results/gemma3_4b_it_smoke/technical/generations
+  token_log_dir: results/gemma3_4b_it_smoke/technical/token_logs
+  summary_csv: results/gemma3_4b_it_smoke/technical/summary_metrics.csv
+  table_csv: results/gemma3_4b_it_smoke/technical/summary_table.csv
+  figures_dir: results/gemma3_4b_it_smoke/technical/figures
+
+gemma_smoke:
+  status: planned
+  experiment_role: modern instruct-model sanity check
+  local_files_only: false

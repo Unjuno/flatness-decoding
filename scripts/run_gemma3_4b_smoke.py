@@ -38,6 +38,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--device", default="auto")
     parser.add_argument("--dtype", default="auto")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--execute", action="store_true", help="Actually run the staged experiment after planning.")
     parser.add_argument("--local-files-only", action="store_true")
     parser.add_argument("--allow-large-n", action="store_true")
     parser.add_argument("--allow-large-run", action="store_true")
@@ -60,6 +61,60 @@ def write_manifest(output_dir: Path, data: dict[str, object]) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     path = manifest_path(output_dir)
     path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+
+
+def build_config(args: argparse.Namespace, output_dir: Path, num_prompts: int, n_trials: int, max_new_tokens: int, methods: list[str]) -> dict[str, object]:
+    experiment_name = f"gemma3_4b_it_writingprompts_{args.phase}"
+    return {
+        "experiment_name": experiment_name,
+        "model_name": args.model_id,
+        "model_cache_dir": "models/hf",
+        "device": args.device,
+        "dtype": args.dtype,
+        "seeds": [0],
+        "generation": {"max_new_tokens": max_new_tokens},
+        "prompts": {
+            "path": args.prompt_file,
+            "limit": num_prompts,
+        },
+        "baselines": {
+            "methods": [m for m in methods if m in {"greedy", "beam", "sampling", "temperature", "top_p", "top_k"}],
+            "temperature": 1.2,
+            "top_p": 0.9,
+            "top_k": 50,
+            "num_beams": 4,
+        },
+        "n_trial_methods": {
+            "methods": [m for m in methods if m not in {"greedy", "beam", "sampling", "temperature", "top_p", "top_k"}],
+            "n_values": [n_trials],
+            "proposal_temperature": 1.0,
+            "use_kv_cache_lookahead": False,
+            "candidate_eval_batch_size": 1,
+            "highprob_logprob_margin": 5.0,
+            "highprob_rank_limit": 100,
+        },
+        "runtime": {
+            "inference_mode": False,
+            "resume": {"skip_complete": True},
+            "cleanup": {
+                "device_cache_after_prompt": False,
+                "device_cache_after_group": True,
+                "python_gc_after_group": False,
+            },
+        },
+        "output": {
+            "generations_dir": str(output_dir / "generations"),
+            "token_log_dir": str(output_dir / "token_logs"),
+            "summary_csv": str(output_dir / "summary_metrics.csv"),
+            "table_csv": str(output_dir / "summary_table.csv"),
+            "figures_dir": str(output_dir / "figures"),
+        },
+        "gemma_smoke": {
+            "status": "planned",
+            "experiment_role": "modern instruct-model sanity check",
+            "local_files_only": args.local_files_only,
+        },
+    }
 
 
 def main() -> None:
@@ -96,20 +151,7 @@ def main() -> None:
     write_manifest(output_dir, manifest)
 
     config_path = output_dir / f"gemma3_4b_it_{args.phase}.yaml"
-    config = {
-        "status": "planned",
-        "experiment_role": "modern instruct-model sanity check",
-        "model_id": args.model_id,
-        "prompt_file": args.prompt_file,
-        "num_prompts": num_prompts,
-        "n_trials": n_trials,
-        "max_new_tokens": max_new_tokens,
-        "methods": methods,
-        "device": args.device,
-        "dtype": args.dtype,
-        "local_files_only": args.local_files_only,
-        "output_dir": str(output_dir),
-    }
+    config = build_config(args, output_dir, num_prompts, n_trials, max_new_tokens, methods)
     config_path.write_text(yaml.safe_dump(config, sort_keys=False, allow_unicode=True), encoding="utf-8")
 
     cmd = [
@@ -121,14 +163,19 @@ def main() -> None:
         "1",
         "--workers",
         "1",
-        "--dry-run",
     ]
+    if not args.execute:
+        cmd.append("--dry-run")
     print("planned phase:", args.phase)
     print("manifest:", manifest_path(output_dir))
     print("config:", config_path)
     print("command:", " ".join(shlex.quote(part) for part in cmd))
 
     if args.dry_run:
+        return
+
+    if not args.execute:
+        print("execute flag not set; exiting after planning/config write")
         return
 
     completed = subprocess.run(cmd, cwd=Path.cwd(), env=os.environ.copy(), check=False)
