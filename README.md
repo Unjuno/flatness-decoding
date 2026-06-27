@@ -16,6 +16,10 @@ The DistilGPT-2 and GPT-2 WritingPrompts experiments are completed.
 - Paper finish skill tree: [`docs/paper_finish_skill_tree.md`](docs/paper_finish_skill_tree.md)
 - Likelihood diagnostic: [`results/analysis/successor_dispersion_likelihood_diagnostics.md`](results/analysis/successor_dispersion_likelihood_diagnostics.md)
 - PPL note: [`paper/ppl_column_note.md`](paper/ppl_column_note.md)
+- Planned modern instruct-model sanity check: Gemma 3 4B-it staged smoke experiment
+  - Extension plan: [`docs/gemma_extension_plan.md`](docs/gemma_extension_plan.md)
+  - Postprocess plan: [`docs/gemma_postprocess_plan.md`](docs/gemma_postprocess_plan.md)
+  - Paper-facing Gemma limit is `N = 8`; `N = 16` / `N = 32` are not part of the planned pass
 - Final report draft: [`paper/report_draft.md`](paper/report_draft.md)
 - Literature positioning note: [`paper/decoding_literature_positioning.md`](paper/decoding_literature_positioning.md)
 - Figure and table artifacts: [`paper/figures/`](paper/figures/)

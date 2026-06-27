@@ -1,0 +1,20 @@
+status: planned
+experiment_role: modern instruct-model sanity check
+model_id: google/gemma-3-4b-it
+prompt_file: prompts/writingprompts_fixed_100.jsonl
+num_prompts: 5
+n_trials: 8
+max_new_tokens: 32
+methods:
+  - top_p
+  - top_k
+  - random
+  - minflat
+  - maxflat
+  - centerflat_q50
+  - centerflat_q75
+  - highprob_centerflat
+device: auto
+dtype: auto
+local_files_only: false
+output_dir: results/gemma3_4b_it_smoke/paper
