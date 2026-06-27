@@ -4,6 +4,19 @@ Experimental evaluation of **next-state logit flatness** as a decoding criterion
 
 This repository is a private research workspace for evaluating a decoding controller called **Flatness-N Decoding**. The goal is not to claim universal improvement, but to test how selecting tokens by next-state logit flatness changes generation trajectories, repetition, diversity, quality proxies, and compute cost.
 
+## WritingPrompts experiment status
+
+The DistilGPT-2 and GPT-2 WritingPrompts experiments are completed.
+
+- Fixed prompt artifact: [`prompts/writingprompts_fixed_100.jsonl`](prompts/writingprompts_fixed_100.jsonl)
+- Key summaries: [`results/summary/`](results/summary/)
+- Qualitative case review artifacts: [`results/analysis/`](results/analysis/)
+- Final report draft: [`paper/report_draft.md`](paper/report_draft.md)
+- Literature positioning note: [`paper/decoding_literature_positioning.md`](paper/decoding_literature_positioning.md)
+- Figure and table artifacts: [`paper/figures/`](paper/figures/)
+- Raw generations and token logs are archived externally rather than committed
+- Artifact packaging instructions: [`docs/artifact_archiving.md`](docs/artifact_archiving.md)
+
 ## Start here
 
 The current operational plan is fixed in:
@@ -29,8 +42,8 @@ notes/output_cleaning.md
 
 WritingPrompts results and interpretation:
 
-- [results/summary/writingprompts_experiment_summary.md](/Users/taka/repos/flatness-decoding/results/summary/writingprompts_experiment_summary.md)
-- [paper/writingprompts_results.md](/Users/taka/repos/flatness-decoding/paper/writingprompts_results.md)
+- [results/summary/writingprompts_experiment_summary.md](results/summary/writingprompts_experiment_summary.md)
+- [paper/writingprompts_results.md](paper/writingprompts_results.md)
 
 ## Core idea
 
