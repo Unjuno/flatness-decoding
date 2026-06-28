@@ -1,0 +1,87 @@
+{
+  "config_path": "configs/comparison_smoke.yaml",
+  "config_sha256": "94abd5712a9d105ee7f8f82b78c7860d5366ff8761efcfb8c30722235d911839",
+  "config": {
+    "experiment_name": "comparison_smoke",
+    "model_name": "distilgpt2",
+    "model_cache_dir": "models/hf",
+    "device": "auto",
+    "dtype": "auto",
+    "seeds": [
+      0
+    ],
+    "generation": {
+      "max_new_tokens": 60
+    },
+    "prompts": {
+      "path": "prompts/writingprompts_fixed_100.jsonl",
+      "limit": 5
+    },
+    "baselines": {
+      "methods": [
+        "greedy",
+        "beam",
+        "sampling",
+        "temperature",
+        "top_p",
+        "top_k"
+      ],
+      "temperature": 1.2,
+      "top_p": 0.9,
+      "top_k": 50,
+      "num_beams": 4
+    },
+    "n_trial_methods": {
+      "methods": [
+        "random",
+        "minflat",
+        "maxflat"
+      ],
+      "n_values": [
+        1,
+        4,
+        8
+      ],
+      "proposal_temperature": 1.0,
+      "use_kv_cache_lookahead": false,
+      "candidate_eval_batch_size": 1
+    },
+    "runtime": {
+      "inference_mode": false,
+      "resume": {
+        "skip_complete": true
+      },
+      "cleanup": {
+        "device_cache_after_prompt": false,
+        "device_cache_after_group": true,
+        "python_gc_after_group": false
+      }
+    },
+    "output": {
+      "generations_dir": "outputs/generations/comparison_smoke",
+      "token_log_dir": "outputs/token_logs/comparison_smoke",
+      "summary_csv": "results/summary/comparison_smoke_metrics.csv",
+      "table_csv": "results/summary/comparison_smoke_table.csv",
+      "figures_dir": "results/figures/comparison_smoke"
+    }
+  },
+  "git_commit": "de03a289e784b6be2beb6dd1832742adabca385a",
+  "python_version": "3.12.13 (main, Mar  3 2026, 12:39:30) [Clang 21.1.8 ]",
+  "platform": "macOS-26.5.1-arm64-arm-64bit",
+  "machine": "arm64",
+  "processor": "arm",
+  "packages": {
+    "torch": "2.12.0",
+    "transformers": "5.12.0",
+    "datasets": "5.0.0",
+    "numpy": "2.4.6",
+    "pandas": "3.0.3"
+  },
+  "devices": {
+    "torch_version": "2.12.0",
+    "cuda_available": false,
+    "cuda_device_count": 0,
+    "cuda_device_names": [],
+    "mps_available": true
+  }
+}

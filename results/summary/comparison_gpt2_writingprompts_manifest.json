@@ -1,0 +1,87 @@
+{
+  "config_path": "configs/comparison_main_template.yaml",
+  "config_sha256": "78224503151e8ad1f1f2b23c4df0313fab95fec0830b87419a5e0ee110edef9c",
+  "config": {
+    "experiment_name": "comparison_gpt2_writingprompts",
+    "model_name": "gpt2",
+    "model_cache_dir": "models/hf",
+    "device": "auto",
+    "dtype": "auto",
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "generation": {
+      "max_new_tokens": 160
+    },
+    "prompts": {
+      "path": "prompts/writingprompts_fixed_100.jsonl",
+      "limit": 100
+    },
+    "baselines": {
+      "methods": [
+        "greedy",
+        "beam",
+        "sampling",
+        "temperature",
+        "top_p",
+        "top_k"
+      ],
+      "temperature": 1.2,
+      "top_p": 0.9,
+      "top_k": 50,
+      "num_beams": 4
+    },
+    "n_trial_methods": {
+      "methods": [
+        "random",
+        "minflat",
+        "maxflat",
+        "midflat",
+        "centerflat_q25",
+        "centerflat_q50",
+        "centerflat_q75",
+        "highprob_centerflat"
+      ],
+      "n_values": [
+        1,
+        4,
+        8,
+        16,
+        32
+      ],
+      "proposal_temperature": 1.0,
+      "use_kv_cache_lookahead": false,
+      "candidate_eval_batch_size": 1,
+      "highprob_logprob_margin": 5.0,
+      "highprob_rank_limit": 100
+    },
+    "output": {
+      "generations_dir": "outputs/generations/comparison_gpt2_writingprompts",
+      "token_log_dir": "outputs/token_logs/comparison_gpt2_writingprompts",
+      "summary_csv": "results/summary/comparison_gpt2_writingprompts_metrics.csv",
+      "table_csv": "results/summary/comparison_gpt2_writingprompts_table.csv",
+      "figures_dir": "results/figures/comparison_gpt2_writingprompts"
+    }
+  },
+  "git_commit": "c12c41f6d9b01fdf184950dd74a9188e7832e32a",
+  "python_version": "3.12.13 (main, Mar  3 2026, 12:39:30) [Clang 21.1.8 ]",
+  "platform": "macOS-26.5.1-arm64-arm-64bit",
+  "machine": "arm64",
+  "processor": "arm",
+  "packages": {
+    "torch": "2.12.0",
+    "transformers": "5.12.0",
+    "datasets": "5.0.0",
+    "numpy": "2.4.6",
+    "pandas": "3.0.3"
+  },
+  "devices": {
+    "torch_version": "2.12.0",
+    "cuda_available": false,
+    "cuda_device_count": 0,
+    "cuda_device_names": [],
+    "mps_available": true
+  }
+}

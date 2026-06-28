@@ -1,0 +1,98 @@
+{
+  "config_path": "configs/comparison_distilgpt2_main.yaml",
+  "config_sha256": "7fd83f668417d7083d253e80b951ddbe574f4cf95873a5506b3b25c8aeacda33",
+  "config": {
+    "experiment_name": "comparison_distilgpt2_writingprompts",
+    "model_name": "distilgpt2",
+    "model_cache_dir": "models/hf",
+    "device": "auto",
+    "dtype": "auto",
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "generation": {
+      "max_new_tokens": 120
+    },
+    "prompts": {
+      "path": "prompts/writingprompts_fixed_100.jsonl",
+      "limit": 100
+    },
+    "baselines": {
+      "methods": [
+        "greedy",
+        "beam",
+        "sampling",
+        "temperature",
+        "top_p",
+        "top_k"
+      ],
+      "temperature": 1.2,
+      "top_p": 0.9,
+      "top_k": 50,
+      "num_beams": 4
+    },
+    "n_trial_methods": {
+      "methods": [
+        "random",
+        "minflat",
+        "maxflat",
+        "midflat",
+        "centerflat_q25",
+        "centerflat_q50",
+        "centerflat_q75",
+        "highprob_centerflat"
+      ],
+      "n_values": [
+        1,
+        4,
+        8,
+        16,
+        32
+      ],
+      "proposal_temperature": 1.0,
+      "use_kv_cache_lookahead": false,
+      "candidate_eval_batch_size": 1,
+      "highprob_logprob_margin": 5.0,
+      "highprob_rank_limit": 100
+    },
+    "runtime": {
+      "inference_mode": false,
+      "resume": {
+        "skip_complete": true
+      },
+      "cleanup": {
+        "device_cache_after_prompt": false,
+        "device_cache_after_group": true,
+        "python_gc_after_group": false
+      }
+    },
+    "output": {
+      "generations_dir": "outputs/generations/comparison_distilgpt2_writingprompts",
+      "token_log_dir": "outputs/token_logs/comparison_distilgpt2_writingprompts",
+      "summary_csv": "results/summary/comparison_distilgpt2_writingprompts_metrics.csv",
+      "table_csv": "results/summary/comparison_distilgpt2_writingprompts_table.csv",
+      "figures_dir": "results/figures/comparison_distilgpt2_writingprompts"
+    }
+  },
+  "git_commit": "be3da1ce6305e2eafed5506ec8734b08cc9201c8",
+  "python_version": "3.12.13 (main, Mar  3 2026, 12:39:30) [Clang 21.1.8 ]",
+  "platform": "macOS-26.5.1-arm64-arm-64bit",
+  "machine": "arm64",
+  "processor": "arm",
+  "packages": {
+    "torch": "2.12.0",
+    "transformers": "5.12.0",
+    "datasets": "5.0.0",
+    "numpy": "2.4.6",
+    "pandas": "3.0.3"
+  },
+  "devices": {
+    "torch_version": "2.12.0",
+    "cuda_available": false,
+    "cuda_device_count": 0,
+    "cuda_device_names": [],
+    "mps_available": true
+  }
+}

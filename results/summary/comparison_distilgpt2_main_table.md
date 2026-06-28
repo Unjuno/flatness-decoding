@@ -1,0 +1,23 @@
+| experiment_name | model | method_family | method | n_trials | num_outputs | mean_continuation_words | mean_output_tokens | mean_runtime_seconds | mean_tokens_per_second | distinct_1 | distinct_2 | distinct_3 | repetition_4 | num_steps | mean_chosen_flatness | mean_candidate_flatness | mean_min_candidate_flatness | mean_max_candidate_flatness | mean_selection_gain | mean_candidate_unique_count |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| comparison_distilgpt2_main | distilgpt2 | baseline | beam | - | 12.5000 | 63.3998 | 87.5986 | 2.5663 | 47.9155 | 0.1448 | 0.2064 | 0.2190 | 0.7781 | - | - | - | - | - | - | - |
+| comparison_distilgpt2_main | distilgpt2 | baseline | greedy | - | 12.5000 | 74.1210 | 120.0000 | 1.7647 | 83.3718 | 0.1307 | 0.2006 | 0.2190 | 0.7749 | - | - | - | - | - | - | - |
+| comparison_distilgpt2_main | distilgpt2 | n_trial | maxflat | 1.0000 | 12.5000 | 84.2177 | 111.2153 | 7.0603 | 20.3853 | 0.6023 | 0.9233 | 0.9748 | 0.0193 | - | - | - | - | - | - | - |
+| comparison_distilgpt2_main | distilgpt2 | n_trial | maxflat | 4.0000 | 12.5000 | 75.3611 | 95.5529 | 10.4940 | 10.7178 | 0.5705 | 0.9232 | 0.9810 | 0.0122 | - | - | - | - | - | - | - |
+| comparison_distilgpt2_main | distilgpt2 | n_trial | maxflat | 8.0000 | 12.5000 | 63.4674 | 82.4196 | 14.2283 | 6.7126 | 0.5723 | 0.9048 | 0.9608 | 0.0300 | - | - | - | - | - | - | - |
+| comparison_distilgpt2_main | distilgpt2 | n_trial | maxflat | 16.0000 | 12.5000 | 51.1584 | 67.1595 | 19.5949 | 3.8889 | 0.5516 | 0.8715 | 0.9439 | 0.0360 | - | - | - | - | - | - | - |
+| comparison_distilgpt2_main | distilgpt2 | n_trial | maxflat | 32.0000 | 12.5000 | 45.7839 | 58.9770 | 33.5067 | 2.1025 | 0.5018 | 0.7957 | 0.8879 | 0.0814 | - | - | - | - | - | - | - |
+| comparison_distilgpt2_main | distilgpt2 | n_trial | minflat | 1.0000 | 12.5000 | 84.2177 | 111.2153 | 5.7978 | 25.5630 | 0.6023 | 0.9233 | 0.9748 | 0.0193 | - | - | - | - | - | - | - |
+| comparison_distilgpt2_main | distilgpt2 | n_trial | minflat | 4.0000 | 12.5000 | 59.0588 | 120.0000 | 11.4343 | 12.5978 | 0.7104 | 0.9079 | 0.9316 | 0.0559 | - | - | - | - | - | - | - |
+| comparison_distilgpt2_main | distilgpt2 | n_trial | minflat | 8.0000 | 12.5000 | 45.2799 | 119.3718 | 20.3881 | 6.6769 | 0.7008 | 0.8729 | 0.9101 | 0.0711 | - | - | - | - | - | - | - |
+| comparison_distilgpt2_main | distilgpt2 | n_trial | minflat | 16.0000 | 12.5000 | 43.7778 | 120.0000 | 35.8344 | 3.7254 | 0.6619 | 0.8412 | 0.8894 | 0.0864 | - | - | - | - | - | - | - |
+| comparison_distilgpt2_main | distilgpt2 | n_trial | minflat | 32.0000 | 12.5000 | 41.2097 | 120.0000 | 65.5751 | 1.9779 | 0.6571 | 0.8538 | 0.8987 | 0.0809 | - | - | - | - | - | - | - |
+| comparison_distilgpt2_main | distilgpt2 | n_trial | random | 1.0000 | 12.5000 | 84.2177 | 111.2153 | 6.5708 | 23.5667 | 0.6023 | 0.9233 | 0.9748 | 0.0193 | - | - | - | - | - | - | - |
+| comparison_distilgpt2_main | distilgpt2 | n_trial | random | 4.0000 | 12.5000 | 84.4228 | 111.1621 | 11.2388 | 11.9381 | 0.6182 | 0.9379 | 0.9834 | 0.0122 | - | - | - | - | - | - | - |
+| comparison_distilgpt2_main | distilgpt2 | n_trial | random | 8.0000 | 12.5000 | 84.4949 | 110.3761 | 18.0572 | 7.2886 | 0.6053 | 0.9249 | 0.9711 | 0.0242 | - | - | - | - | - | - | - |
+| comparison_distilgpt2_main | distilgpt2 | n_trial | random | 16.0000 | 12.5000 | 82.5449 | 107.9941 | 31.6734 | 3.9737 | 0.6057 | 0.9291 | 0.9765 | 0.0181 | - | - | - | - | - | - | - |
+| comparison_distilgpt2_main | distilgpt2 | n_trial | random | 32.0000 | 12.5000 | 84.9159 | 110.8037 | 57.3199 | 2.1734 | 0.6088 | 0.9270 | 0.9732 | 0.0219 | - | - | - | - | - | - | - |
+| comparison_distilgpt2_main | distilgpt2 | baseline | sampling | - | 12.5000 | 84.2559 | 110.9573 | 2.6819 | 60.2555 | 0.6111 | 0.9351 | 0.9813 | 0.0141 | - | - | - | - | - | - | - |
+| comparison_distilgpt2_main | distilgpt2 | baseline | temperature | - | 12.5000 | 80.8261 | 109.3518 | 2.6606 | 58.6183 | 0.7575 | 0.9873 | 0.9991 | 0.0003 | - | - | - | - | - | - | - |
+| comparison_distilgpt2_main | distilgpt2 | baseline | top_k | - | 12.5000 | 88.8256 | 110.5024 | 2.7926 | 57.1344 | 0.5215 | 0.9069 | 0.9776 | 0.0131 | - | - | - | - | - | - | - |
+| comparison_distilgpt2_main | distilgpt2 | baseline | top_p | - | 12.5000 | 84.4201 | 113.2810 | 2.9024 | 54.9668 | 0.6860 | 0.9715 | 0.9930 | 0.0055 | - | - | - | - | - | - | - |
