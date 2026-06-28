@@ -24,6 +24,12 @@ The DistilGPT-2 and GPT-2 WritingPrompts experiments are completed.
   - Extension plan: [`docs/gemma_extension_plan.md`](docs/gemma_extension_plan.md)
   - Postprocess plan: [`docs/gemma_postprocess_plan.md`](docs/gemma_postprocess_plan.md)
   - Paper-facing Gemma limit is `N = 8`; `N = 16` / `N = 32` are not part of the planned pass
+- Planned modern-model probes:
+  - `google/gemma-2-2b` base-model probe
+  - `Qwen/Qwen2.5-1.5B-Instruct` instruct-model probe
+  - Small cross-model sanity checks only; `N = 8` only
+  - Plan: [`docs/modern_model_probe_plan.md`](docs/modern_model_probe_plan.md)
+  - Model cache location: `models/hf/`
 - Final report draft: [`paper/report_draft.md`](paper/report_draft.md)
 - Literature positioning note: [`paper/decoding_literature_positioning.md`](paper/decoding_literature_positioning.md)
 - Figure and table artifacts: [`paper/figures/`](paper/figures/)
