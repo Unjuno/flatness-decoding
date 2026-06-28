@@ -15,6 +15,7 @@ venv/
 /outputs/token_logs/
 /outputs/raw_metrics/
 /models/
+/models/hf/
 /checkpoints/
 /wandb/
 /.cache/
@@ -24,6 +25,7 @@ venv/
 *.pth
 *.bin
 *.safetensors
+*.gguf
 *.ckpt
 *.arrow
 *.parquet
