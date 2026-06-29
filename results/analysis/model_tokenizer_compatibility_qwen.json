@@ -1,0 +1,50 @@
+{
+  "requested_model_name": "Qwen/Qwen2.5-1.5B-Instruct",
+  "tokenizer_name_or_path": "Qwen/Qwen2.5-1.5B-Instruct",
+  "model_config_name_or_path": null,
+  "tokenizer_class": "Qwen2Tokenizer",
+  "model_class": null,
+  "device": "mps",
+  "dtype": "torch.float16",
+  "model_dtype": null,
+  "model_cache_dir": "models/hf",
+  "chat_template_exists": true,
+  "pad_token_id": 151643,
+  "eos_token_id": 151645,
+  "bos_token_id": null,
+  "padding_side": "right",
+  "model_max_length": 131072,
+  "tokenizer_vocab_size": 151643,
+  "len_tokenizer": 151665,
+  "model_input_embedding_vocab_size": null,
+  "model_output_head_vocab_size": null,
+  "vocab_compatible": true,
+  "name_or_path_matches_requested": true,
+  "cache_path_warning": null,
+  "model_error": "Qwen/Qwen2.5-1.5B-Instruct does not appear to have a file named pytorch_model.bin or model.safetensors.",
+  "smoke_roundtrip": [
+    {
+      "text": "Hello.",
+      "token_count": 2,
+      "roundtrip_ok": true,
+      "decoded": "Hello."
+    },
+    {
+      "text": "[ WP ] Write a road trip story.",
+      "token_count": 9,
+      "roundtrip_ok": true,
+      "decoded": "[ WP ] Write a road trip story."
+    },
+    {
+      "text": "Continue the following WritingPrompts story prompt as narrative prose.",
+      "token_count": 12,
+      "roundtrip_ok": true,
+      "decoded": "Continue the following WritingPrompts story prompt as narrative prose."
+    }
+  ],
+  "generation_smoke": {
+    "prompt": "Hello.",
+    "generated_text": null
+  },
+  "chat_template_recommendation": "Qwen-style chat_template exists; consider a separate chat-template condition."
+}

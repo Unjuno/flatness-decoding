@@ -1,0 +1,54 @@
+{
+  "requested_model_name": "google/gemma-3-4b-it",
+  "tokenizer_name_or_path": "google/gemma-3-4b-it",
+  "model_config_name_or_path": "google/gemma-3-4b-it",
+  "tokenizer_class": "GemmaTokenizer",
+  "model_class": "Gemma3ForConditionalGeneration",
+  "device": "cpu",
+  "dtype": "torch.float32",
+  "model_dtype": "torch.float32",
+  "model_cache_dir": "models/hf",
+  "chat_template_exists": true,
+  "pad_token_id": 0,
+  "eos_token_id": 1,
+  "bos_token_id": 2,
+  "padding_side": "left",
+  "model_max_length": 1000000000000000019884624838656,
+  "tokenizer_vocab_size": 262144,
+  "len_tokenizer": 262145,
+  "model_input_embedding_vocab_size": 262208,
+  "model_output_head_vocab_size": 262208,
+  "vocab_compatible": false,
+  "name_or_path_matches_requested": true,
+  "cache_path_warning": null,
+  "model_error": null,
+  "smoke_roundtrip": [
+    {
+      "text": "Hello.",
+      "token_count": 2,
+      "roundtrip_ok": true,
+      "decoded": "Hello."
+    },
+    {
+      "text": "[ WP ] Write a road trip story.",
+      "token_count": 9,
+      "roundtrip_ok": true,
+      "decoded": "[ WP ] Write a road trip story."
+    },
+    {
+      "text": "Continue the following WritingPrompts story prompt as narrative prose.",
+      "token_count": 12,
+      "roundtrip_ok": true,
+      "decoded": "Continue the following WritingPrompts story prompt as narrative prose."
+    }
+  ],
+  "generation_smoke": {
+    "prompt": "Hello.",
+    "generated_text": "Hello.Hello.Hello.Hello.Hello.Hello.Hello.Hello.Hello.Hello.Hello.Hello.Hello.Hello.Hello.Hello.Hello."
+  },
+  "chat_template_smoke": {
+    "prompt": "<bos><start_of_turn>user\nWrite one short sentence about a traveler at a train station.<end_of_turn>\n<start_of_turn>model\n",
+    "generated_text": "user\nWrite one short sentence about a traveler at a train station.\nmodel\nThe weary traveler slumped onto a bench, clutching his ticket and watching the train pull in."
+  },
+  "chat_template_recommendation": "Qwen-style chat_template exists; consider a separate chat-template condition."
+}
