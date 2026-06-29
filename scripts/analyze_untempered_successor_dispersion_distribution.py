@@ -5,10 +5,17 @@ import csv
 import gc
 import json
 import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
+ROOT = Path(__file__).resolve().parents[1]
+SRC = ROOT / "src"
+if str(SRC) not in sys.path:
+    sys.path.insert(0, str(SRC))
+
+from flatness_decoding.io_utils import read_jsonl
 
 CONDITION_SPECS = {
     "gpt2": {
@@ -207,6 +214,14 @@ def load_prompts(prompt_path: Path, max_prompts: int) -> list[dict[str, object]]
     return rows
 
 
+def load_generation_rows(gen_dir: Path, max_prompts: int) -> list[dict[str, object]]:
+    rows: list[dict[str, object]] = []
+    for path in sorted(gen_dir.glob("*.jsonl")):
+        rows.extend(read_jsonl(path))
+    rows.sort(key=lambda r: (str(r.get("prompt_id", "")), int(r.get("prompt_index", 0)), str(r.get("method", ""))))
+    return rows[: max_prompts * max(1, len({r.get("method") for r in rows}))]
+
+
 def load_completed_keys(output_dir: Path) -> set[tuple[str, str, str, int]]:
     completed: set[tuple[str, str, str, int]] = set()
     csv_path = output_dir / "successor_dispersion_untempered_topk_distribution.csv"
@@ -295,6 +310,228 @@ def write_csv_rows(path: Path, rows: list[dict[str, object]], columns: list[str]
             writer.writerow(row)
 
 
+def stable_quantile_index(values: list[tuple[float, int]], quantile: float) -> int:
+    if not values:
+        raise ValueError("no values")
+    ordered = sorted(values, key=lambda item: (item[0], item[1]))
+    pos = int(round((len(ordered) - 1) * quantile))
+    return ordered[max(0, min(pos, len(ordered) - 1))][1]
+
+
+def summarize_band(probabilities: torch.Tensor, flatness: torch.Tensor) -> tuple[float, float, float]:
+    flat_cpu = flatness.detach().float().cpu()
+    prob_cpu = probabilities.detach().float().cpu()
+    pairs = [(float(flat_cpu[i].item()), int(i)) for i in range(int(flat_cpu.shape[0]))]
+    p25 = stable_quantile_index(pairs, 0.25)
+    p75 = stable_quantile_index(pairs, 0.75)
+    lo = min(p25, p75)
+    hi = max(p25, p75)
+    mass_below = float(prob_cpu[:lo].sum().item())
+    mass_mid = float(prob_cpu[lo : hi + 1].sum().item())
+    mass_above = float(prob_cpu[hi + 1 :].sum().item())
+    total = mass_below + mass_mid + mass_above
+    if total > 0:
+        return mass_below / total, mass_mid / total, mass_above / total
+    return 0.0, 0.0, 0.0
+
+
+def decode_token(tokenizer, token_id: int) -> str:
+    text = tokenizer.decode([int(token_id)], skip_special_tokens=True)
+    return text.replace("\n", "\\n")
+
+
+def run_condition(
+    target: RunTarget,
+    methods: list[str],
+    args: argparse.Namespace,
+    output_dir: Path,
+) -> list[dict[str, object]]:
+    import torch
+
+    from flatness_decoding.decoding import current_candidate_distribution_stats, evaluate_candidates_next_flatness
+    from flatness_decoding.model_io import load_causal_lm
+
+    model, tokenizer, device = load_causal_lm(
+        target.model,
+        device_name=args.device,
+        dtype_name=args.dtype,
+        cache_dir=args.model_cache_dir,
+        local_files_only=args.local_files_only,
+        trust_remote_code=True,
+    )
+    try:
+        generations = load_generation_rows(target.generations_dir, args.max_prompts)
+        if not generations:
+            raise SystemExit(f"no generations found in {target.generations_dir}")
+        completed = load_completed_keys(output_dir) if args.resume else set()
+        rows_out: list[dict[str, object]] = []
+        by_condition_rows: list[dict[str, object]] = []
+        for gen_row in generations:
+            method = str(gen_row.get("method", ""))
+            if method not in methods:
+                continue
+            prompt_id = str(gen_row.get("prompt_id", ""))
+            prompt_index = int(gen_row.get("prompt_index", 0))
+            if not prompt_id:
+                continue
+            prompt = str(gen_row.get("prompt", ""))
+            continuation = str(gen_row.get("continuation_text", ""))
+            prompt_ids = tokenizer(prompt, return_tensors="pt", add_special_tokens=False)["input_ids"].to(device)
+            cont_ids = tokenizer(continuation, return_tensors="pt", add_special_tokens=False)["input_ids"][0].tolist()
+            max_steps = min(args.max_steps, len(cont_ids))
+            for step in range(max_steps):
+                key = (target.condition, method, prompt_id, step)
+                if key in completed:
+                    continue
+                started = time.perf_counter()
+                prefix_ids = torch.tensor([cont_ids[:step]], dtype=torch.long, device=device)
+                if prefix_ids.numel() == 0:
+                    input_ids = prompt_ids
+                else:
+                    input_ids = torch.cat([prompt_ids, prefix_ids], dim=1)
+                with torch.inference_mode():
+                    current_logits = model(input_ids=input_ids).logits[0, -1, :]
+                    candidate_ids = torch.topk(current_logits, k=min(args.top_k, current_logits.shape[-1])).indices.detach().long().cpu()
+                    candidate_logprobs, candidate_probs, candidate_ranks = current_candidate_distribution_stats(current_logits, candidate_ids)
+                    candidate_flatness = evaluate_candidates_next_flatness(
+                        model=model,
+                        input_ids=input_ids,
+                        candidate_ids=candidate_ids,
+                        candidate_eval_batch_size=args.candidate_batch_size,
+                        past_key_values=None,
+                    ).detach().float().cpu()
+
+                flat_pairs = [(float(candidate_flatness[i].item()), int(i)) for i in range(int(candidate_flatness.shape[0]))]
+                order = sorted(range(len(flat_pairs)), key=lambda i: (flat_pairs[i][0], i))
+                p10 = order[max(0, min(int(round((len(order) - 1) * 0.10)), len(order) - 1))]
+                p25 = order[max(0, min(int(round((len(order) - 1) * 0.25)), len(order) - 1))]
+                p50 = order[max(0, min(int(round((len(order) - 1) * 0.50)), len(order) - 1))]
+                p75 = order[max(0, min(int(round((len(order) - 1) * 0.75)), len(order) - 1))]
+                p90 = order[max(0, min(int(round((len(order) - 1) * 0.90)), len(order) - 1))]
+                flat_min = order[0]
+                flat_max = order[-1]
+                prob_mass_below_p25, prob_mass_p25_p75, prob_mass_above_p75 = summarize_band(candidate_probs, candidate_flatness)
+                row = {
+                    "condition": target.condition,
+                    "model": target.model,
+                    "prompt_mode": target.prompt_mode,
+                    "method": method,
+                    "prompt_id": prompt_id,
+                    "prompt_index": prompt_index,
+                    "step": step,
+                    "top_k": min(args.top_k, current_logits.shape[-1]),
+                    "candidate_batch_size": args.candidate_batch_size,
+                    "context_input_tokens": int(input_ids.shape[-1]),
+                    "flat_min": float(candidate_flatness[flat_min].item()),
+                    "flat_p10": float(candidate_flatness[p10].item()),
+                    "flat_p25": float(candidate_flatness[p25].item()),
+                    "flat_p50": float(candidate_flatness[p50].item()),
+                    "flat_p75": float(candidate_flatness[p75].item()),
+                    "flat_p90": float(candidate_flatness[p90].item()),
+                    "flat_max": float(candidate_flatness[flat_max].item()),
+                    "rank_at_flat_min": int(candidate_ranks[flat_min].item()),
+                    "rank_at_flat_p50": int(candidate_ranks[p50].item()),
+                    "rank_at_flat_p75": int(candidate_ranks[p75].item()),
+                    "rank_at_flat_max": int(candidate_ranks[flat_max].item()),
+                    "logprob_at_flat_min": float(candidate_logprobs[flat_min].item()),
+                    "logprob_at_flat_p50": float(candidate_logprobs[p50].item()),
+                    "logprob_at_flat_p75": float(candidate_logprobs[p75].item()),
+                    "logprob_at_flat_max": float(candidate_logprobs[flat_max].item()),
+                    "token_id_at_flat_min": int(candidate_ids[flat_min].item()),
+                    "token_id_at_flat_p50": int(candidate_ids[p50].item()),
+                    "token_id_at_flat_p75": int(candidate_ids[p75].item()),
+                    "token_id_at_flat_max": int(candidate_ids[flat_max].item()),
+                    "token_at_flat_min": decode_token(tokenizer, int(candidate_ids[flat_min].item())),
+                    "token_at_flat_p50": decode_token(tokenizer, int(candidate_ids[p50].item())),
+                    "token_at_flat_p75": decode_token(tokenizer, int(candidate_ids[p75].item())),
+                    "token_at_flat_max": decode_token(tokenizer, int(candidate_ids[flat_max].item())),
+                    "prob_mass_below_p25": prob_mass_below_p25,
+                    "prob_mass_p25_p75": prob_mass_p25_p75,
+                    "prob_mass_above_p75": prob_mass_above_p75,
+                    "flatness_range": float(candidate_flatness.max().item() - candidate_flatness.min().item()),
+                    "gap_p25_p50": float(candidate_flatness[p50].item() - candidate_flatness[p25].item()),
+                    "gap_p50_p75": float(candidate_flatness[p75].item() - candidate_flatness[p50].item()),
+                    "runtime_seconds": time.perf_counter() - started,
+                }
+                rows_out.append(row)
+                by_condition_rows.append(row)
+                if len(rows_out) >= args.flush_every:
+                    write_csv_rows(output_dir / "successor_dispersion_untempered_topk_distribution.csv", rows_out, REPORT_COLUMNS, not (output_dir / "successor_dispersion_untempered_topk_distribution.csv").exists())
+                    rows_out.clear()
+                    clear_memory()
+        if rows_out:
+            write_csv_rows(output_dir / "successor_dispersion_untempered_topk_distribution.csv", rows_out, REPORT_COLUMNS, not (output_dir / "successor_dispersion_untempered_topk_distribution.csv").exists())
+            rows_out.clear()
+        return by_condition_rows
+    finally:
+        del model
+        clear_memory()
+
+
+def aggregate_by_condition(rows: list[dict[str, object]]) -> list[dict[str, object]]:
+    grouped: dict[tuple[str, str, str, str], list[dict[str, object]]] = {}
+    for row in rows:
+        key = (str(row["condition"]), str(row["model"]), str(row["prompt_mode"]), str(row["method"]))
+        grouped.setdefault(key, []).append(row)
+    out: list[dict[str, object]] = []
+    for (condition, model, prompt_mode, method), group in sorted(grouped.items()):
+        def mean(name: str) -> float:
+            vals = [float(r[name]) for r in group]
+            return sum(vals) / len(vals)
+        def median(name: str) -> float:
+            vals = sorted(float(r[name]) for r in group)
+            mid = len(vals) // 2
+            return vals[mid] if len(vals) % 2 else 0.5 * (vals[mid - 1] + vals[mid])
+        out.append({
+            "condition": condition,
+            "model": model,
+            "prompt_mode": prompt_mode,
+            "method": method,
+            "n_rows": len(group),
+            "top_k": int(group[0]["top_k"]),
+            "mean_flat_p50": mean("flat_p50"),
+            "mean_flat_p75": mean("flat_p75"),
+            "mean_rank_at_flat_p50": mean("rank_at_flat_p50"),
+            "median_rank_at_flat_p50": median("rank_at_flat_p50"),
+            "mean_rank_at_flat_p75": mean("rank_at_flat_p75"),
+            "median_rank_at_flat_p75": median("rank_at_flat_p75"),
+            "mean_prob_mass_p25_p75": mean("prob_mass_p25_p75"),
+            "mean_prob_mass_below_p25": mean("prob_mass_below_p25"),
+            "mean_prob_mass_above_p75": mean("prob_mass_above_p75"),
+            "mean_flatness_range": mean("flatness_range"),
+            "mean_gap_p25_p50": mean("gap_p25_p50"),
+            "mean_gap_p50_p75": mean("gap_p50_p75"),
+        })
+    return out
+
+
+def write_report(output_dir: Path, condition_rows: list[dict[str, object]], summary_rows: list[dict[str, object]]) -> None:
+    report = output_dir / "successor_dispersion_untempered_topk_report.md"
+    lines = [
+        "# Untempered Successor Dispersion Report",
+        "",
+        "This report is generated from raw current-logit top-K candidates and is intended to test whether the successor-dispersion median remains tied to the high-probability region.",
+        "",
+        "## Questions",
+        "",
+        "1. Does successor-dispersion p50 overlap with high-probability current-token regions?",
+        "2. Is p50 low probability even when candidates are selected from raw top-K logits?",
+        "3. Does Gemma place high-probability candidates closer to p75 than p50?",
+        "4. Does Qwen show a weaker or different overlap pattern?",
+        "5. Was earlier q50 behavior mainly caused by proposal-temperature sampling?",
+        "6. Are min/max extremes separated by large flatness gaps, or is the distribution narrow?",
+        "7. Does p25-p75 probability mass differ across GPT-2, Gemma, and Qwen?",
+        "",
+        "## Status",
+        "",
+        f"- distribution rows: {len(condition_rows)}",
+        f"- condition summary rows: {len(summary_rows)}",
+        "",
+        "If no execute run has been performed, these fields remain placeholders only.",
+    ]
+    report.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 def main() -> None:
     args = parse_args()
     conditions = normalize_names(args.conditions or ["qwen_raw"])
@@ -306,12 +543,19 @@ def main() -> None:
     print_plan(args, targets, methods)
     if not args.execute:
         return
-    import torch
-
-    raise SystemExit(
-        "execute mode is intentionally not enabled yet in this scaffold; "
-        "use the dry-run plan to validate paths before wiring execution."
-    )
+    if "qwen_raw" not in conditions or any(c != "qwen_raw" for c in conditions):
+        raise SystemExit("execute mode currently supports qwen_raw only; other conditions remain scaffolded")
+    all_rows: list[dict[str, object]] = []
+    for target in targets:
+        all_rows.extend(run_condition(target, methods, args, out_dir))
+    summary_rows = aggregate_by_condition(all_rows)
+    by_condition_path = out_dir / "successor_dispersion_untempered_topk_by_condition.csv"
+    if summary_rows:
+        with by_condition_path.open("w", encoding="utf-8", newline="") as fh:
+            writer = csv.DictWriter(fh, fieldnames=CONDITION_SUMMARY_COLUMNS)
+            writer.writeheader()
+            writer.writerows(summary_rows)
+    write_report(out_dir, all_rows, summary_rows)
 
 
 if __name__ == "__main__":
