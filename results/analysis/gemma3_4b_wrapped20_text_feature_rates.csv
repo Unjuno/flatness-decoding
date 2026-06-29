@@ -1,0 +1,9 @@
+method,n_trials,row_count,prompt_count,weather_opening,rain_opening,metal_iron_rust_blood_lexicon,regret_guilt_shadow_lexicon,generic_atmospheric_opening,dialogue_opening,named_character_opening,setting_specificity,prompt_entity_reuse,prompt_tag_reuse,wrapper_leak,semantic_drift_possible
+top_p,,20,20,0.65,0.65,0.45,0.3,0.0,0.0,0.0,0.25,0.3,0.0,0.0,0.7
+top_k,,20,20,0.7,0.7,0.45,0.4,0.0,0.0,0.0,0.2,0.35,0.0,0.0,0.65
+random,8,20,20,0.7,0.7,0.45,0.2,0.05,0.0,0.0,0.25,0.25,0.0,0.0,0.75
+minflat,8,20,20,0.4,0.35,0.2,0.05,0.1,0.0,0.0,0.2,0.2,0.0,0.0,0.8
+maxflat,8,20,20,0.55,0.55,0.3,0.05,0.0,0.0,0.0,0.25,0.15,0.0,0.0,0.85
+centerflat_q50,8,20,20,0.8,0.8,0.65,0.2,0.0,0.0,0.0,0.4,0.35,0.0,0.0,0.65
+centerflat_q75,8,20,20,0.75,0.75,0.65,0.35,0.0,0.0,0.0,0.35,0.1,0.0,0.0,0.9
+highprob_centerflat,8,20,20,0.8,0.8,0.7,0.2,0.0,0.0,0.0,0.3,0.1,0.0,0.0,0.9
