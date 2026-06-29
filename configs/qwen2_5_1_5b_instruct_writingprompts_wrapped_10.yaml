@@ -1,6 +1,6 @@
 experiment_name: qwen2_5_1_5b_instruct_writingprompts_wrapped_10
 model_name: Qwen/Qwen2.5-1.5B-Instruct
-model_cache_dir: models/hf
+model_cache_dir: hf-cache/qwen2.5-1.5b-
 device: auto
 dtype: auto
 seeds:
@@ -42,11 +42,11 @@ runtime:
     device_cache_after_group: true
     python_gc_after_group: false
 output:
-  generations_dir: results/modern_model_probes/qwen2_5_1_5b_instruct_wrapped_10/generations
-  token_log_dir: results/modern_model_probes/qwen2_5_1_5b_instruct_wrapped_10/token_logs
-  summary_csv: results/modern_model_probes/qwen2_5_1_5b_instruct_wrapped_10/summary_metrics.csv
-  table_csv: results/modern_model_probes/qwen2_5_1_5b_instruct_wrapped_10/summary_table.csv
-  figures_dir: results/modern_model_probes/qwen2_5_1_5b_instruct_wrapped_10/figures
+  generations_dir: results/qwen2_5_1_5b_instruct_wrapped/10/generations
+  token_log_dir: results/qwen2_5_1_5b_instruct_wrapped/10/token_logs
+  summary_csv: results/qwen2_5_1_5b_instruct_wrapped/10/summary_metrics.csv
+  table_csv: results/qwen2_5_1_5b_instruct_wrapped/10/summary_table.csv
+  figures_dir: results/qwen2_5_1_5b_instruct_wrapped/10/figures
 modern_probe:
   status: planned
   experiment_role: non-Gemma instruction-tuned probe

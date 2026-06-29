@@ -46,22 +46,47 @@ def load_causal_lm(
     dtype = dtype_from_name(dtype_name, device)
     resolved_cache_dir = normalize_cache_dir(cache_dir)
 
-    tokenizer = AutoTokenizer.from_pretrained(
-        model_name,
-        cache_dir=resolved_cache_dir,
-        local_files_only=local_files_only,
-        trust_remote_code=trust_remote_code,
-    )
+    load_target = model_name
+    fallback_target = None
+    if resolved_cache_dir is not None:
+        candidate_dir = Path(resolved_cache_dir)
+        if candidate_dir.exists() and any(candidate_dir.iterdir()):
+            fallback_target = str(candidate_dir)
+    try:
+        tokenizer = AutoTokenizer.from_pretrained(
+            load_target,
+            cache_dir=resolved_cache_dir,
+            local_files_only=local_files_only,
+            trust_remote_code=trust_remote_code,
+        )
+    except Exception:
+        if fallback_target is None:
+            raise
+        tokenizer = AutoTokenizer.from_pretrained(
+            fallback_target,
+            local_files_only=True,
+            trust_remote_code=trust_remote_code,
+        )
     if tokenizer.pad_token_id is None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    model = AutoModelForCausalLM.from_pretrained(
-        model_name,
-        torch_dtype=dtype,
-        cache_dir=resolved_cache_dir,
-        local_files_only=local_files_only,
-        trust_remote_code=trust_remote_code,
-    )
+    try:
+        model = AutoModelForCausalLM.from_pretrained(
+            load_target,
+            torch_dtype=dtype,
+            cache_dir=resolved_cache_dir,
+            local_files_only=local_files_only,
+            trust_remote_code=trust_remote_code,
+        )
+    except Exception:
+        if fallback_target is None:
+            raise
+        model = AutoModelForCausalLM.from_pretrained(
+            fallback_target,
+            torch_dtype=dtype,
+            local_files_only=True,
+            trust_remote_code=trust_remote_code,
+        )
     model.to(device)
     model.eval()
 

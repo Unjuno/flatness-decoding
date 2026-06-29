@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import argparse
+import json
+import shutil
 import shlex
 import subprocess
 import sys
@@ -18,6 +20,8 @@ CONFIGS = {
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Plan or run small modern-model probes.")
     p.add_argument("--model-key", choices=sorted(CONFIGS), required=True)
+    p.add_argument("--model-id", default=None)
+    p.add_argument("--config", default=None)
     p.add_argument("--execute", action="store_true")
     p.add_argument("--dry-run", action="store_true")
     p.add_argument("--num-shards", type=int, default=1)
@@ -28,15 +32,18 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    config = Path(CONFIGS[args.model_key])
+    config = Path(args.config or CONFIGS[args.model_key])
     if not config.exists():
         raise SystemExit(f"config not found: {config}")
     cfg = yaml.safe_load(config.read_text(encoding="utf-8"))
+    if args.model_id and cfg.get("model_name") and cfg["model_name"] != args.model_id:
+        raise SystemExit(f"model id mismatch: config has {cfg['model_name']}, requested {args.model_id}")
     n_values = cfg.get("n_trial_methods", {}).get("n_values", [])
     if any(int(n) > 8 for n in n_values):
         raise SystemExit("modern-model probes refuse n_values > 8")
     if any(int(n) in {16, 32} for n in n_values):
         raise SystemExit("modern-model probes refuse N=16 or N=32")
+    output_dir = Path(cfg["output"]["generations_dir"]).parent
     cmd = [
         sys.executable,
         "scripts/run_experiment_parallel.py",
@@ -52,13 +59,25 @@ def main() -> None:
     if not args.execute:
         cmd.append("--dry-run")
     print("model_key:", args.model_key)
+    print("model_id:", args.model_id or cfg.get("model_name"))
     print("config:", config)
+    print("output_dir:", output_dir)
     print("command:", " ".join(shlex.quote(p) for p in cmd))
     if args.dry_run or not args.execute:
         return
     completed = subprocess.run(cmd, cwd=Path.cwd(), check=False)
     if completed.returncode != 0:
         raise SystemExit(completed.returncode)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(config, output_dir / config.name)
+    manifest = {
+        "model_key": args.model_key,
+        "model_id": args.model_id or cfg.get("model_name"),
+        "config": str(config),
+        "output_dir": str(output_dir),
+        "status": "completed",
+    }
+    (output_dir / "run_manifest.json").write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
 if __name__ == "__main__":

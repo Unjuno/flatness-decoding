@@ -20,10 +20,13 @@ def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Analyze Gemma wrapped smoke outputs.")
     p.add_argument("--run-dir", default="results/gemma3_4b_it_wrapped/10")
     p.add_argument("--output-dir", default="results/analysis")
+    p.add_argument("--prefix", default=None)
     return p.parse_args()
 
 
-def result_prefix(run_dir: Path) -> str:
+def result_prefix(run_dir: Path, prefix: str | None) -> str:
+    if prefix:
+        return prefix
     phase = run_dir.name
     return f"gemma3_4b_wrapped{phase}"
 
@@ -69,7 +72,7 @@ def main() -> None:
     run_dir = Path(args.run_dir)
     out_dir = Path(args.output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
-    prefix = result_prefix(run_dir)
+    prefix = result_prefix(run_dir, args.prefix)
     df = load_rows(run_dir)
     if df.empty:
         raise SystemExit(f"no generation rows found in {run_dir}")
