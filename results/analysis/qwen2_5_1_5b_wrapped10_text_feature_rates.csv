@@ -1,0 +1,9 @@
+method,n_trials,row_count,prompt_count,token_fragment_collapse,multilingual_garbage,repeated_subword_pattern,instruction_like_reversion,question_prompting,title_like_artifact,prompt_marker_or_continuation_leak,semantic_incoherence
+top_p,,10,10,0.0,0.0,0.8,0.0,0.0,0.0,0.0,0.8
+top_k,,10,10,0.0,0.0,0.8,0.0,0.0,0.0,0.0,0.5
+random,8,10,10,0.0,0.0,1.0,0.0,0.0,0.0,0.0,0.3
+minflat,8,10,10,0.0,0.4,0.3,0.0,0.1,0.0,0.0,0.2
+maxflat,8,10,10,0.0,0.0,0.9,0.0,0.0,0.0,0.0,0.7
+centerflat_q50,8,10,10,0.0,0.0,0.9,0.0,0.0,0.0,0.0,0.4
+centerflat_q75,8,10,10,0.0,0.0,1.0,0.0,0.1,0.0,0.0,0.5
+highprob_centerflat,8,10,10,0.0,0.0,0.9,0.0,0.1,0.0,0.0,0.2
