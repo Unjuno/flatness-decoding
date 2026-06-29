@@ -1,3 +1,8 @@
+from pathlib import Path
+
+import pytest
+
+from scripts.run_experiment_parallel import prompt_count_from_config
 from scripts.run_experiment_set import select_prompt_shard, shard_suffix
 
 
@@ -23,3 +28,20 @@ def test_select_prompt_shard_rejects_bad_index():
         assert "shard_index" in str(exc)
     else:
         raise AssertionError("expected ValueError")
+
+
+def test_prompt_count_from_config_reports_missing_prompt_file(tmp_path):
+    config = tmp_path / "config.yaml"
+    config.write_text(
+        "\n".join(
+            [
+                "prompts:",
+                "  path: prompts/does_not_exist.jsonl",
+                "  limit: 2",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(SystemExit, match="Prompt file not found: prompts/does_not_exist.jsonl"):
+        prompt_count_from_config(config)

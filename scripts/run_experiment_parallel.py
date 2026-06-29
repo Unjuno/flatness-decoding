@@ -42,7 +42,14 @@ def parse_args() -> argparse.Namespace:
 def prompt_count_from_config(config_path: str | Path) -> int:
     with Path(config_path).open("r", encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
-    prompts = read_jsonl(cfg["prompts"]["path"])
+    prompt_path = Path(cfg["prompts"]["path"])
+    if not prompt_path.exists():
+        raise SystemExit(
+            f"Prompt file not found: {prompt_path}\n"
+            "Run `make build-prompts` in an environment with Hugging Face access, "
+            "or provide a pre-generated fixed prompt JSONL."
+        )
+    prompts = read_jsonl(prompt_path)
     limit = cfg.get("prompts", {}).get("limit")
     if limit is not None:
         prompts = prompts[: int(limit)]

@@ -18,7 +18,7 @@ The DistilGPT-2 and GPT-2 WritingPrompts experiments are completed.
 - PPL note: [`paper/ppl_column_note.md`](paper/ppl_column_note.md)
 - Planned modern instruct-model sanity check: Gemma 3 4B-it staged smoke experiment
   - Raw smoke outputs: completed for technical, paper, optional phases
-  - Wrapped continuation follow-up: wrapped10 is running/partial; wrapped20 is planned; `N = 8` only and `N = 16` / `N = 32` are excluded
+  - Wrapped continuation follow-up: wrapped10 and wrapped20 are completed; `N = 8` only and `N = 16` / `N = 32` are excluded
 - Current Gemma analysis: [`results/analysis/gemma_current_output_inventory.md`](results/analysis/gemma_current_output_inventory.md), [`results/analysis/gemma_current_qualitative_synthesis.md`](results/analysis/gemma_current_qualitative_synthesis.md)
   - Heuristic mode labels only; not a formal evaluation
   - Extension plan: [`docs/gemma_extension_plan.md`](docs/gemma_extension_plan.md)

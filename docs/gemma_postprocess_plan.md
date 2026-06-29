@@ -4,7 +4,9 @@
 
 Gemma smoke outputs should be kept in a dedicated directory such as
 `results/gemma3_4b_it_smoke/` or `outputs/gemma3_4b_it_smoke/`, separate from
-the completed GPT-2 and DistilGPT-2 experiment directories.
+the completed GPT-2 and DistilGPT-2 experiment directories. The wrapped
+continuation follow-up should live under `results/gemma3_4b_it_wrapped/` with
+dedicated 10-prompt and 20-prompt result directories.
 
 ## 2. Required metrics
 
@@ -75,3 +77,10 @@ Preserve any successful Gemma outputs externally rather than committing raw
 artifacts directly to Git. If archiving is needed, package only the smoke output
 directory, the manifest, and the summary tables. Keep checksum instructions
 portable across Linux and macOS (`sha256sum` or `shasum -a 256`).
+
+
+## 9. Wrapped continuation follow-up
+
+If the wrapped prompt run succeeds, treat it as the more paper-facing Gemma
+extension. Keep the wrapper explicit, keep `N = 8` only, and avoid expanding to
+`N = 16` or `N = 32`.
