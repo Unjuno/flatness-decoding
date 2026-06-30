@@ -319,19 +319,33 @@ def stable_quantile_index(values: list[tuple[float, int]], quantile: float) -> i
 
 
 def summarize_band(probabilities: torch.Tensor, flatness: torch.Tensor) -> tuple[float, float, float]:
+    """Return probability mass by flatness band.
+
+    Tie handling is stable and explicit:
+    - lower band: flatness <= flat_p25
+    - middle band: flat_p25 < flatness <= flat_p75
+    - upper band: flatness > flat_p75
+
+    The candidate array is left in raw-top-k logit rank order, but the mass is
+    accumulated in flatness space rather than by raw candidate index slices.
+    """
     flat_cpu = flatness.detach().float().cpu()
     prob_cpu = probabilities.detach().float().cpu()
     pairs = [(float(flat_cpu[i].item()), int(i)) for i in range(int(flat_cpu.shape[0]))]
-    p25 = stable_quantile_index(pairs, 0.25)
-    p75 = stable_quantile_index(pairs, 0.75)
-    lo = min(p25, p75)
-    hi = max(p25, p75)
-    mass_below = float(prob_cpu[:lo].sum().item())
-    mass_mid = float(prob_cpu[lo : hi + 1].sum().item())
-    mass_above = float(prob_cpu[hi + 1 :].sum().item())
-    total = mass_below + mass_mid + mass_above
-    if total > 0:
-        return mass_below / total, mass_mid / total, mass_above / total
+    p25_idx = stable_quantile_index(pairs, 0.25)
+    p75_idx = stable_quantile_index(pairs, 0.75)
+    flat_p25 = float(flat_cpu[p25_idx].item())
+    flat_p75 = float(flat_cpu[p75_idx].item())
+    lower = prob_cpu[flat_cpu <= flat_p25].sum()
+    middle = prob_cpu[(flat_cpu > flat_p25) & (flat_cpu <= flat_p75)].sum()
+    upper = prob_cpu[flat_cpu > flat_p75].sum()
+    total = lower + middle + upper
+    if float(total.item()) > 0.0:
+        return (
+            float((lower / total).item()),
+            float((middle / total).item()),
+            float((upper / total).item()),
+        )
     return 0.0, 0.0, 0.0
 
 
@@ -511,6 +525,7 @@ def write_report(output_dir: Path, condition_rows: list[dict[str, object]], summ
         "# Untempered Successor Dispersion Report",
         "",
         "This report is generated from raw current-logit top-K candidates and is intended to test whether the successor-dispersion median remains tied to the high-probability region.",
+        "Probability-mass bands are computed in flatness space, not by candidate-rank order.",
         "",
         "## Questions",
         "",
@@ -526,6 +541,7 @@ def write_report(output_dir: Path, condition_rows: list[dict[str, object]], summ
         "",
         f"- distribution rows: {len(condition_rows)}",
         f"- condition summary rows: {len(summary_rows)}",
+        "- p50 rank is valid; the correction applies only to probability-mass bands.",
         "",
         "If no execute run has been performed, these fields remain placeholders only.",
     ]

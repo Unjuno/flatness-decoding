@@ -1,6 +1,7 @@
 # Untempered Successor Dispersion Report
 
 This report is generated from raw current-logit top-K candidates and is intended to test whether the successor-dispersion median remains tied to the high-probability region.
+Probability-mass bands are computed in flatness space, not by candidate-rank order.
 
 ## Questions
 
@@ -16,5 +17,6 @@ This report is generated from raw current-logit top-K candidates and is intended
 
 - distribution rows: 8
 - condition summary rows: 1
+- p50 rank is valid; the correction applies only to probability-mass bands.
 
 If no execute run has been performed, these fields remain placeholders only.

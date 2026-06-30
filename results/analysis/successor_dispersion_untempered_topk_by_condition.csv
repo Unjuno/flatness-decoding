@@ -1,2 +1,2 @@
 condition,model,prompt_mode,method,n_rows,top_k,mean_flat_p50,mean_flat_p75,mean_rank_at_flat_p50,median_rank_at_flat_p50,mean_rank_at_flat_p75,median_rank_at_flat_p75,mean_prob_mass_p25_p75,mean_prob_mass_below_p25,mean_prob_mass_above_p75,mean_flatness_range,mean_gap_p25_p50,mean_gap_p50_p75
-qwen_raw,Qwen/Qwen2.5-1.5B-Instruct,raw_writingprompts,top_p,8,20,3.0403096079826355,3.110315442085266,8.625,5.0,8.875,6.0,0.2648351443789523,0.680457799095373,0.0547070565256748,0.5656822025775909,0.06910106539726257,0.07000583410263062
+qwen_raw,Qwen/Qwen2.5-1.5B-Instruct,raw_writingprompts,top_p,8,20,3.0403096079826355,3.110315442085266,8.625,5.0,8.875,6.0,0.5347445486113429,0.2172749361488968,0.24798052199184895,0.5656822025775909,0.06910106539726257,0.07000583410263062
