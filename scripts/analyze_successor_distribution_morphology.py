@@ -29,6 +29,13 @@ CONDITION_SPECS: dict[str, dict[str, Any]] = {
         "prompt_path": ROOT / "prompts" / "writingprompts_fixed_100.jsonl",
         "generation_dir": None,
         "token_log_dir": None,
+        "generation_candidates": [
+            ROOT / "results" / "gpt2_writingprompts" / "generations",
+            ROOT / "results" / "comparison_gpt2_writingprompts" / "generations",
+            ROOT / "results" / "gpt2_medium_micro" / "generations",
+            ROOT / "results" / "gpt2_lite" / "generations",
+            ROOT / "results" / "distilgpt2_writingprompts" / "generations",
+        ],
         "notes": "GPT-2 path is ambiguous; set a local path explicitly before execution.",
     },
     "gemma_raw": {
@@ -424,6 +431,14 @@ def _quantile(values, q: float):
     return float(torch.quantile(values.float(), torch.tensor(q, device=values.device)).item())
 
 
+def _median_scalar(values) -> float:
+    import torch
+
+    if values.numel() == 0:
+        return 0.0
+    return float(torch.median(values.float()).item())
+
+
 def morphology_stats(logits):
     import torch
 
@@ -434,8 +449,9 @@ def morphology_stats(logits):
     n = int(sorted_logits.numel())
     logit_std = float(torch.std(logits_f, unbiased=False).item())
     logit_iqr = _quantile(logits_f, 0.75) - _quantile(logits_f, 0.25)
-    abs_dev = torch.abs(logits_f - torch.median(logits_f).values)
-    logit_mad = float(torch.median(abs_dev).item())
+    med = torch.median(logits_f)
+    abs_dev = torch.abs(logits_f - med)
+    logit_mad = _median_scalar(abs_dev)
     logit_range = float((logits_f.max() - logits_f.min()).item()) if n else 0.0
     top1_prob = float(sorted_probs[0].item()) if n else 0.0
     top5_mass = float(sorted_probs[:5].sum().item()) if n >= 5 else float(sorted_probs.sum().item())
@@ -696,6 +712,28 @@ def write_report(out_dir: Path, feature_rows: list[dict[str, Any]], summaries: d
     report.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
+def resolve_generation_dir(meta: ConditionMeta) -> Path:
+    if meta.generation_dir is not None:
+        if meta.generation_dir.exists():
+            return meta.generation_dir
+        raise SystemExit(f"generation dir not found: {meta.generation_dir}")
+    candidates = list(CONDITION_SPECS.get(meta.condition, {}).get("generation_candidates", []))
+    existing = [Path(path) for path in candidates if Path(path).exists()]
+    if len(existing) == 1:
+        return existing[0]
+    candidate_lines = "\n".join(f"  - {Path(path)}" for path in candidates) or "  - <none>"
+    if existing:
+        existing_lines = "\n".join(f"  - {path}" for path in existing)
+        raise SystemExit(
+            f"ambiguous generation dir for {meta.condition}; multiple candidates exist:\n{existing_lines}\n"
+            f"candidate list considered:\n{candidate_lines}"
+        )
+    raise SystemExit(
+        f"generation dir for {meta.condition} is ambiguous or missing.\n"
+        f"candidate paths considered:\n{candidate_lines}"
+    )
+
+
 def estimate_totals(targets: list[ConditionMeta], methods: list[str], max_prompts: int, max_steps: int, repeat_count: int, top_k: int) -> tuple[int, int]:
     current = len(targets) * len(methods) * max_prompts * max_steps * repeat_count
     successor = current * top_k
@@ -848,9 +886,8 @@ def run_model_group(model_name: str, metas: list[ConditionMeta], args: argparse.
     all_rows: list[dict[str, Any]] = []
     try:
         for meta in metas:
-            if meta.generation_dir is None:
-                raise SystemExit(f"condition {meta.condition} has no generation_dir mapping; add one before execution")
-            generations = load_generations(meta.generation_dir, args.max_prompts)
+            generation_dir = resolve_generation_dir(meta)
+            generations = load_generations(generation_dir, args.max_prompts)
             completed = load_completed_keys(out_dir / "successor_distribution_morphology_features.csv") if args.resume else set()
             pending_rows: list[dict[str, Any]] = []
             for gen in generations:
