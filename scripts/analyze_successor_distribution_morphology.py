@@ -788,11 +788,11 @@ def summarize_candidate_metrics(current_logits, candidate_ids, candidate_flatnes
     p75_val = float(torch.quantile(flat_sorted, torch.tensor(0.75)).item()) if flat_sorted.numel() else 0.0
     p50_idx = int(torch.argmin(torch.abs(flat_sorted - p50_val)).item()) if flat_sorted.numel() else 0
     p75_idx = int(torch.argmin(torch.abs(flat_sorted - p75_val)).item()) if flat_sorted.numel() else 0
-    sorted_rank = torch.empty_like(order)
-    sorted_rank[order] = torch.arange(1, len(order) + 1, device=order.device)
-    ranks = sorted_rank.to(torch.float32)
-    rank_at_p50 = float((order[p50_idx].item() + 1)) if ranks.numel() else 0.0
-    rank_at_p75 = float((order[p75_idx].item() + 1)) if ranks.numel() else 0.0
+    current_rank_order = torch.argsort(cand_probs, descending=True, stable=True)
+    current_rank = torch.empty_like(current_rank_order)
+    current_rank[current_rank_order] = torch.arange(1, len(current_rank_order) + 1, device=current_rank_order.device)
+    rank_at_p50 = float(current_rank[order[p50_idx]].item()) if current_rank.numel() else 0.0
+    rank_at_p75 = float(current_rank[order[p75_idx]].item()) if current_rank.numel() else 0.0
     p25_mass = float(prob_sorted[flat_sorted <= p25_val].sum().item() / total_prob)
     mid_mass = float(prob_sorted[(flat_sorted > p25_val) & (flat_sorted <= p75_val)].sum().item() / total_prob)
     high_mass = float(prob_sorted[flat_sorted > p75_val].sum().item() / total_prob)
@@ -825,7 +825,7 @@ def summarize_candidate_metrics(current_logits, candidate_ids, candidate_flatnes
         "candidate_token_ids_sorted": candidate_ids[order].tolist(),
         "candidate_probs_sorted": prob_sorted.tolist(),
         "candidate_flat_sorted": flat_sorted.tolist(),
-        "candidate_ranks_sorted": [int(ranks[i].item()) for i in range(len(ranks))],
+        "candidate_ranks_sorted": [int(current_rank[i].item()) for i in range(len(current_rank))],
         "candidate_logprobs_sorted": cand_logprobs[order].tolist(),
         "candidate_total_prob": total_prob,
         "prob_mass_below_p25": p25_mass,
