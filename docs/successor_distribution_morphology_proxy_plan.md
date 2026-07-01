@@ -1,6 +1,6 @@
 # Successor Distribution Morphology Proxy Plan
 
-Successor distribution morphology is a diagnostic view of the candidate distribution that follows a prompt and a partial continuation. The point is not to score quality. The point is to describe the *shape* of the next-token distribution and ask whether that shape tracks output modes such as direct prose, generic prose, markup, prompt recycling, or token-fragment collapse.
+Successor distribution morphology is a diagnostic view of the distribution that follows the actual generated token at each recorded step. The point is not to score quality. The point is to describe the *shape* of the successor distribution and ask whether that shape tracks output modes such as direct prose, generic prose, markup, prompt recycling, or token-fragment collapse.
 
 ## Why `logit_std` alone is insufficient
 
@@ -90,7 +90,7 @@ These ask whether flatness-selected successors sit in the high-probability regio
 
 ## Relation to earlier experiments
 
-This extends the earlier successor-dispersion work by moving from a single scalar to a morphology profile. The earlier analyses asked whether a candidate successor is flat or not. This plan asks what kind of distribution shape that candidate comes from, and whether the shape correlates with observed output modes.
+This extends the earlier successor-dispersion work by moving from a single scalar to a morphology profile. The earlier analyses asked whether a candidate successor is flat or not. This plan asks what kind of distribution shape the actual generated-token successor comes from, and whether the shape correlates with observed output modes.
 
 ## Batch execution design
 
@@ -121,6 +121,8 @@ That matters because modern instruction-tuned models can consume substantial mem
 - `repeat_count` / `seed_count`: stochastic replicates of the same prompt/method slice
 - `top_k`: number of raw-logit candidates used to build the morphology profile
 
+The main morphology columns are computed from the successor distribution after the actual generated token. Candidate-set alignment diagnostics are reported separately and are based on the raw current-logit top-K candidates and their successor flatness scores.
+
 ## Memory and runtime caveats
 
 Use `torch.inference_mode()`, stream rows, and avoid retaining full logits or intermediate tensors. Always clear CPU/GPU/MPS caches between flushes. Keep `candidate_batch_size` small by default.
@@ -135,6 +137,8 @@ The script should skip already completed rows when `--resume` is used. The compl
 - `seed`
 - `repeat_index`
 - `step`
+
+For the 20x20 preset, actual repeated generation outputs are required to observe repeat_count > 1. If the stored generations only contain a single seed/repeat, the report will show the observed count and a warning instead of fabricating repetitions.
 
 ## Recommended commands
 
@@ -174,4 +178,3 @@ python scripts/analyze_successor_distribution_morphology.py \
   --allow-gemma \
   --dry-run
 ```
-

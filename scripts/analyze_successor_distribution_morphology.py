@@ -173,6 +173,7 @@ FEATURE_COLUMNS = [
     "prompt_index",
     "seed",
     "repeat_index",
+    "requested_repeat_count",
     "step",
     "top_k",
     "candidate_batch_size",
@@ -657,12 +658,20 @@ def summarize_rows(rows: list[dict[str, Any]], bootstrap_samples: int) -> dict[s
     return outputs
 
 
-def write_report(out_dir: Path, feature_rows: list[dict[str, Any]], summaries: dict[str, list[dict[str, Any]]]) -> None:
+def write_report(
+    out_dir: Path,
+    feature_rows: list[dict[str, Any]],
+    summaries: dict[str, list[dict[str, Any]]],
+    requested_repeat_count: int,
+) -> None:
     report = out_dir / "successor_distribution_morphology_report.md"
     lines = [
         "# Successor Distribution Morphology",
         "",
         "These are diagnostic morphology proxies, not quality metrics.",
+        "",
+        "Main morphology columns are computed from the successor distribution after the actual generated token.",
+        "Current-logit candidate alignment diagnostics are kept separate in the `candidate_*` fields.",
         "",
         "## What the proxies cover",
         "",
@@ -691,6 +700,9 @@ def write_report(out_dir: Path, feature_rows: list[dict[str, Any]], summaries: d
         "This script loads one model at a time, processes the requested conditions for that model, streams rows to CSV, and clears memory before moving on.",
         "",
         f"- feature rows collected: {len(feature_rows)}",
+        f"- requested_repeat_count: {requested_repeat_count}",
+        f"- observed_seed_count: {len({int(row.get('seed', 0)) for row in feature_rows}) if feature_rows else 0}",
+        f"- observed_repeat_count: {len({int(row.get('repeat_index', 0)) for row in feature_rows}) if feature_rows else 0}",
         f"- by-condition summary rows: {len(summaries.get('by_condition', []))}",
         f"- by-method summary rows: {len(summaries.get('by_method', []))}",
         f"- by-prompt summary rows: {len(summaries.get('by_prompt', []))}",
@@ -708,6 +720,7 @@ def write_report(out_dir: Path, feature_rows: list[dict[str, Any]], summaries: d
         "## Notes",
         "",
         "Prompt_count, repeat_count, and top_k are distinct. `prompt_count` is the number of prompts; `repeat_count`/`seed_count` are stochastic replicates; `top_k` is the candidate set used for morphology.",
+        "For the 20x20 preset, actual repeated generation outputs are required to observe repeat_count > 1; otherwise the report will show the available observed repeat count only.",
     ]
     report.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
@@ -734,10 +747,12 @@ def resolve_generation_dir(meta: ConditionMeta) -> Path:
     )
 
 
-def estimate_totals(targets: list[ConditionMeta], methods: list[str], max_prompts: int, max_steps: int, repeat_count: int, top_k: int) -> tuple[int, int]:
-    current = len(targets) * len(methods) * max_prompts * max_steps * repeat_count
-    successor = current * top_k
-    return current, successor
+def estimate_totals(targets: list[ConditionMeta], methods: list[str], max_prompts: int, max_steps: int, repeat_count: int, top_k: int) -> tuple[int, int, int, int]:
+    context_passes = len(targets) * len(methods) * max_prompts * max_steps * repeat_count
+    successor_passes = context_passes
+    candidate_alignment_passes = context_passes * top_k
+    total_passes = context_passes + successor_passes + candidate_alignment_passes
+    return context_passes, successor_passes, candidate_alignment_passes, total_passes
 
 
 def maybe_gate(args: argparse.Namespace, targets: list[ConditionMeta]) -> None:
@@ -771,7 +786,9 @@ def preset_overrides(args: argparse.Namespace) -> dict[str, Any]:
 
 
 def print_plan(targets: list[ConditionMeta], methods: list[str], args: argparse.Namespace) -> None:
-    current, successor = estimate_totals(targets, methods, args.max_prompts, args.max_steps, args.repeat_count, args.top_k)
+    context_passes, successor_passes, candidate_alignment_passes, total_passes = estimate_totals(
+        targets, methods, args.max_prompts, args.max_steps, args.repeat_count, args.top_k
+    )
     print("conditions:", ", ".join(t.condition for t in targets))
     print("models:", ", ".join(sorted({t.model_name for t in targets})))
     print("methods:", ", ".join(methods))
@@ -782,8 +799,10 @@ def print_plan(targets: list[ConditionMeta], methods: list[str], args: argparse.
     print("seed_start:", args.seed_start)
     print("seed_count:", args.seed_count)
     print("candidate_batch_size:", args.candidate_batch_size)
-    print("estimated_current_forward_passes:", current)
-    print("estimated_successor_forward_passes:", successor)
+    print("estimated_context_forward_passes:", context_passes)
+    print("estimated_successor_forward_passes:", successor_passes)
+    print("estimated_candidate_alignment_forward_passes:", candidate_alignment_passes)
+    print("estimated_total_forward_passes:", total_passes)
     for t in targets:
         print(f"target[{t.condition}]: model={t.model_name}")
         print(f"  prompt_mode={t.prompt_mode}")
@@ -871,6 +890,18 @@ def summarize_candidate_metrics(current_logits, candidate_ids, candidate_flatnes
     }
 
 
+def actual_successor_features(successor_logits, tokenizer, prompt_text: str, recent_text: str) -> dict[str, Any]:
+    stats = morphology_stats(successor_logits)
+    token_masses = token_type_masses(
+        tokenizer,
+        stats["sorted_idx"][:20].detach().cpu(),
+        stats["sorted_probs"][:20].detach().cpu(),
+        prompt_text,
+        recent_text,
+    )
+    return {**stats, **token_masses}
+
+
 def run_model_group(model_name: str, metas: list[ConditionMeta], args: argparse.Namespace, out_dir: Path) -> list[dict[str, Any]]:
     from flatness_decoding.model_io import load_causal_lm
     import torch
@@ -909,21 +940,24 @@ def run_model_group(model_name: str, metas: list[ConditionMeta], args: argparse.
                         continue
                     prefix_ids = torch.tensor([cont_ids[:step]], dtype=torch.long, device=device)
                     input_ids = prompt_ids if prefix_ids.numel() == 0 else torch.cat([prompt_ids, prefix_ids], dim=1)
+                    chosen_token_id = int(cont_ids[step])
+                    chosen_token = safe_decode(tokenizer, chosen_token_id) if chosen_token_id >= 0 else ""
                     started = time.perf_counter()
                     with torch.inference_mode():
                         current_logits = model(input_ids=input_ids).logits[0, -1, :]
                         current_probs = torch.softmax(current_logits.float(), dim=-1)
                         current_logprobs = torch.log_softmax(current_logits.float(), dim=-1)
+                        current_current_prob = float(current_probs[chosen_token_id].item()) if chosen_token_id >= 0 else 0.0
+                        current_current_logprob = float(current_logprobs[chosen_token_id].item()) if chosen_token_id >= 0 else 0.0
+                        current_current_rank = int((current_logits > current_logits[chosen_token_id]).sum().item()) + 1 if chosen_token_id >= 0 else 0
                         top_k = min(args.top_k, int(current_logits.shape[-1]))
                         top = torch.topk(current_logits, k=top_k)
                         candidate_ids = top.indices.detach().cpu()
                         candidate_flatness = []
-                        candidate_modes = []
                         for cid in candidate_ids.tolist():
                             successor_ids = torch.cat([input_ids, torch.tensor([[cid]], device=device)], dim=1)
                             succ_logits = model(input_ids=successor_ids).logits[0, -1, :]
                             candidate_flatness.append(float(torch.std(succ_logits.float(), unbiased=False).item()))
-                            candidate_modes.append(0)
                         candidate_flatness_t = torch.tensor(candidate_flatness)
                         summary = summarize_candidate_metrics(
                             current_logits.detach().cpu(),
@@ -933,9 +967,14 @@ def run_model_group(model_name: str, metas: list[ConditionMeta], args: argparse.
                             prompt_text,
                             continuation[: max(0, step * 4)],
                         )
-                        top_order = summary["flatness_sorted_idx"]
-                        chosen_idx = int(top_order[0]) if top_order else 0
-                        chosen_token_id = int(candidate_ids[chosen_idx].item()) if len(candidate_ids) else -1
+                        successor_ids = torch.cat([input_ids, torch.tensor([[chosen_token_id]], device=device)], dim=1)
+                        successor_logits = model(input_ids=successor_ids).logits[0, -1, :]
+                        successor_features = actual_successor_features(
+                            successor_logits,
+                            tokenizer,
+                            prompt_text,
+                            continuation[: max(0, step * 4)],
+                        )
                         chosen_token = safe_decode(tokenizer, chosen_token_id) if chosen_token_id >= 0 else ""
                         mode_label = output_mode_label([chosen_token], prompt_text)
                         row = {
@@ -947,6 +986,7 @@ def run_model_group(model_name: str, metas: list[ConditionMeta], args: argparse.
                             "prompt_index": prompt_index,
                             "seed": seed,
                             "repeat_index": repeat_index,
+                            "requested_repeat_count": args.repeat_count,
                             "step": step,
                             "top_k": top_k,
                             "candidate_batch_size": args.candidate_batch_size,
@@ -954,47 +994,44 @@ def run_model_group(model_name: str, metas: list[ConditionMeta], args: argparse.
                             "chosen_token": chosen_token,
                             "context_input_tokens": int(input_ids.shape[-1]),
                             "output_mode_label": mode_label,
-                            "candidate_rank": int(top_order[0] + 1) if top_order else 1,
+                            "candidate_rank": current_current_rank,
                             "candidate_token_id": chosen_token_id,
                             "candidate_token": chosen_token,
-                            "candidate_current_logprob": float(current_logprobs[chosen_token_id].item()) if chosen_token_id >= 0 else 0.0,
-                            "candidate_current_rank": int((current_logits > current_logits[chosen_token_id]).sum().item()) + 1 if chosen_token_id >= 0 else 0,
-                            "candidate_current_prob": float(current_probs[chosen_token_id].item()) if chosen_token_id >= 0 else 0.0,
-                            "logit_std": float(torch.std(current_logits.float(), unbiased=False).item()),
-                            "logit_iqr": float(torch.quantile(current_logits.float(), torch.tensor(0.75, device=current_logits.device)).item() - torch.quantile(current_logits.float(), torch.tensor(0.25, device=current_logits.device)).item()),
-                            "logit_mad": float(torch.median(torch.abs(current_logits.float() - torch.median(current_logits.float()).values)).item()),
-                            "logit_range": float((current_logits.max() - current_logits.min()).item()),
-                            "top1_prob": float(current_probs.max().item()),
-                            "top5_mass": float(torch.topk(current_probs, k=min(5, current_probs.numel())).values.sum().item()),
-                            "top10_mass": float(torch.topk(current_probs, k=min(10, current_probs.numel())).values.sum().item()),
-                            "softmax_entropy": float((-(current_probs * torch.log(current_probs.clamp_min(1e-12))).sum()).item()),
-                            "effective_vocab_size": float(math.exp(float((-(current_probs * torch.log(current_probs.clamp_min(1e-12))).sum()).item()))),
-                            "tail_mass_after_top50": float(max(0.0, 1.0 - torch.topk(current_probs, k=min(50, current_probs.numel())).values.sum().item())),
-                            "tail_mass_after_top100": float(max(0.0, 1.0 - torch.topk(current_probs, k=min(100, current_probs.numel())).values.sum().item())),
-                            "nucleus_size_p90": int((torch.cumsum(torch.sort(current_probs, descending=True, stable=True).values, dim=0) < 0.90).sum().item()) + 1,
-                            "nucleus_size_p95": int((torch.cumsum(torch.sort(current_probs, descending=True, stable=True).values, dim=0) < 0.95).sum().item()) + 1,
-                            "rank_prob_slope_top50": least_squares_slope(
-                                list(range(1, min(50, current_probs.numel()) + 1)),
-                                [math.log(max(1e-12, float(v))) for v in torch.sort(current_probs, descending=True, stable=True).values[: min(50, current_probs.numel())].detach().cpu().tolist()],
-                            ),
-                            "gap_1_2": float((torch.topk(current_logits, k=min(2, current_logits.numel())).values[0] - torch.topk(current_logits, k=min(2, current_logits.numel())).values[-1]).item()) if current_logits.numel() > 1 else 0.0,
-                            "gap_1_5": float((torch.topk(current_logits, k=min(5, current_logits.numel())).values[0] - torch.topk(current_logits, k=min(5, current_logits.numel())).values[-1]).item()) if current_logits.numel() > 4 else 0.0,
-                            "gap_5_20": float((torch.topk(current_logits, k=min(20, current_logits.numel())).values[4] - torch.topk(current_logits, k=min(20, current_logits.numel())).values[-1]).item()) if current_logits.numel() > 19 else 0.0,
-                            "max_gap_top50": float(torch.max(torch.topk(current_logits, k=min(50, current_logits.numel())).values[:-1] - torch.topk(current_logits, k=min(50, current_logits.numel())).values[1:]).item()) if current_logits.numel() > 1 else 0.0,
-                            "large_gap_count_top50": int((torch.topk(current_logits, k=min(50, current_logits.numel())).values[:-1] - torch.topk(current_logits, k=min(50, current_logits.numel())).values[1:] > 1.0).sum().item()) if current_logits.numel() > 1 else 0,
-                            "gap_std_top50": float(torch.std(torch.topk(current_logits, k=min(50, current_logits.numel())).values[:-1] - torch.topk(current_logits, k=min(50, current_logits.numel())).values[1:], unbiased=False).item()) if current_logits.numel() > 2 else 0.0,
-                            "markup_mass_top20": summary["token_masses"]["markup_mass_top20"],
-                            "newline_or_bullet_mass_top20": summary["token_masses"]["newline_or_bullet_mass_top20"],
-                            "quote_mass_top20": summary["token_masses"]["quote_mass_top20"],
-                            "digit_mass_top20": summary["token_masses"]["digit_mass_top20"],
-                            "subword_fragment_mass_top20": summary["token_masses"]["subword_fragment_mass_top20"],
-                            "html_marker_mass_top20": summary["token_masses"]["html_marker_mass_top20"],
-                            "title_marker_mass_top20": summary["token_masses"]["title_marker_mass_top20"],
-                            "choice_marker_mass_top20": summary["token_masses"]["choice_marker_mass_top20"],
-                            "prompt_overlap_mass_top20": summary["token_masses"]["prompt_overlap_mass_top20"],
-                            "prompt_marker_mass_top20": summary["token_masses"]["prompt_marker_mass_top20"],
-                            "prompt_entity_overlap_mass_top20": summary["token_masses"]["prompt_entity_overlap_mass_top20"],
-                            "recent_overlap_mass_top20": summary["token_masses"]["recent_overlap_mass_top20"],
+                            "candidate_current_logprob": current_current_logprob,
+                            "candidate_current_rank": current_current_rank,
+                            "candidate_current_prob": current_current_prob,
+                            "logit_std": float(successor_features["logit_std"]),
+                            "logit_iqr": float(successor_features["logit_iqr"]),
+                            "logit_mad": float(successor_features["logit_mad"]),
+                            "logit_range": float(successor_features["logit_range"]),
+                            "top1_prob": float(successor_features["top1_prob"]),
+                            "top5_mass": float(successor_features["top5_mass"]),
+                            "top10_mass": float(successor_features["top10_mass"]),
+                            "softmax_entropy": float(successor_features["softmax_entropy"]),
+                            "effective_vocab_size": float(successor_features["effective_vocab_size"]),
+                            "tail_mass_after_top50": float(successor_features["tail_mass_after_top50"]),
+                            "tail_mass_after_top100": float(successor_features["tail_mass_after_top100"]),
+                            "nucleus_size_p90": int(successor_features["nucleus_size_p90"]),
+                            "nucleus_size_p95": int(successor_features["nucleus_size_p95"]),
+                            "rank_prob_slope_top50": float(successor_features["rank_prob_slope_top50"]),
+                            "gap_1_2": float(successor_features["gap_1_2"]),
+                            "gap_1_5": float(successor_features["gap_1_5"]),
+                            "gap_5_20": float(successor_features["gap_5_20"]),
+                            "max_gap_top50": float(successor_features["max_gap_top50"]),
+                            "large_gap_count_top50": int(successor_features["large_gap_count_top50"]),
+                            "gap_std_top50": float(successor_features["gap_std_top50"]),
+                            "markup_mass_top20": float(successor_features["markup_mass_top20"]),
+                            "newline_or_bullet_mass_top20": float(successor_features["newline_or_bullet_mass_top20"]),
+                            "quote_mass_top20": float(successor_features["quote_mass_top20"]),
+                            "digit_mass_top20": float(successor_features["digit_mass_top20"]),
+                            "subword_fragment_mass_top20": float(successor_features["subword_fragment_mass_top20"]),
+                            "html_marker_mass_top20": float(successor_features["html_marker_mass_top20"]),
+                            "title_marker_mass_top20": float(successor_features["title_marker_mass_top20"]),
+                            "choice_marker_mass_top20": float(successor_features["choice_marker_mass_top20"]),
+                            "prompt_overlap_mass_top20": float(successor_features["prompt_overlap_mass_top20"]),
+                            "prompt_marker_mass_top20": float(successor_features["prompt_marker_mass_top20"]),
+                            "prompt_entity_overlap_mass_top20": float(successor_features["prompt_entity_overlap_mass_top20"]),
+                            "recent_overlap_mass_top20": float(successor_features["recent_overlap_mass_top20"]),
                             "rank_at_flat_p50": summary["rank_at_flat_p50"],
                             "rank_at_flat_p75": summary["rank_at_flat_p75"],
                             "prob_mass_p25_p75": summary["prob_mass_p25_p75"],
@@ -1056,7 +1093,7 @@ def main() -> None:
             confidence_rows.append({"summary_type": name, **row})
     if confidence_rows:
         write_rows(out_dir / "successor_distribution_morphology_confidence_intervals.csv", confidence_rows, list(confidence_rows[0].keys()))
-    write_report(out_dir, all_rows, summaries)
+    write_report(out_dir, all_rows, summaries, args.repeat_count)
 
 
 if __name__ == "__main__":
