@@ -365,6 +365,25 @@ def resolve_args(args: argparse.Namespace) -> dict[str, Any]:
     return merged
 
 
+def namespace_from_resolved(resolved: dict[str, Any]) -> argparse.Namespace:
+    required = [
+        "candidate_pool_mode",
+        "candidate_pool_size",
+        "samples_per_regime",
+        "max_prompts",
+        "max_steps",
+        "generate_continuations",
+        "continuation_max_new_tokens",
+        "continuation_decoding",
+        "top_p",
+        "temperature",
+    ]
+    missing = [key for key in required if key not in resolved]
+    if missing:
+        raise SystemExit(f"internal error: missing resolved args: {missing}")
+    return argparse.Namespace(**resolved)
+
+
 def split_prompts_by_model(targets: list[ProbeConditionMeta]) -> dict[str, list[ProbeConditionMeta]]:
     grouped: dict[str, list[ProbeConditionMeta]] = defaultdict(list)
     for target in targets:
@@ -998,7 +1017,8 @@ def main() -> None:
                 condition_candidate_rows: list[dict[str, Any]] = []
                 prompt_rows = pool_prompt_rows(read_prompts(meta.prompt_path, resolved["max_prompts"]), resolved["max_prompts"])
                 for prompt_row in prompt_rows:
-                    candidate_rows = probe_prompt(model, tokenizer, device, meta, prompt_row, argparse.Namespace(**resolved))
+                    probe_args = namespace_from_resolved(resolved)
+                    candidate_rows = probe_prompt(model, tokenizer, device, meta, prompt_row, probe_args)
                     fresh_candidate_rows = []
                     for row in candidate_rows:
                         key = (
@@ -1041,9 +1061,9 @@ def main() -> None:
                             tokenizer,
                             device,
                             selected_prefix_ids,
-                            resolved["continuation_decoding"],
-                            resolved["top_p"],
-                            resolved["continuation_max_new_tokens"],
+                            probe_args.continuation_decoding,
+                            probe_args.top_p,
+                            probe_args.continuation_max_new_tokens,
                         )
                         row_prompt = str(row.get("prompt", ""))
                         fresh_generation_rows.append(
@@ -1062,11 +1082,11 @@ def main() -> None:
                                 "generation_settings": json.dumps(
                                     {
                                         "generate_continuations": True,
-                                        "continuation_max_new_tokens": resolved["continuation_max_new_tokens"],
-                                        "continuation_decoding": resolved["continuation_decoding"],
-                                        "top_p": resolved["top_p"],
-                                        "candidate_pool_mode": resolved["candidate_pool_mode"],
-                                        "candidate_pool_size": resolved["candidate_pool_size"],
+                                        "continuation_max_new_tokens": probe_args.continuation_max_new_tokens,
+                                        "continuation_decoding": probe_args.continuation_decoding,
+                                        "top_p": probe_args.top_p,
+                                        "candidate_pool_mode": probe_args.candidate_pool_mode,
+                                        "candidate_pool_size": probe_args.candidate_pool_size,
                                     },
                                     ensure_ascii=False,
                                 ),
@@ -1095,9 +1115,9 @@ def main() -> None:
             clear_probe_memory()
 
     full_selected_rows = read_selected_rows(selected_path) if selected_path.exists() else all_selected_rows
-    summary_rows = summarize(full_selected_rows, argparse.Namespace(**resolved))
+    summary_rows = summarize(full_selected_rows, namespace_from_resolved(resolved))
     write_rows(out_dir / "morphology_stratified_probe_summary.csv", summary_rows, list(summary_rows[0].keys()) if summary_rows else ["regime_family", "regime"])
-    write_report(out_dir, all_candidate_rows, full_selected_rows, summary_rows, argparse.Namespace(**resolved))
+    write_report(out_dir, all_candidate_rows, full_selected_rows, summary_rows, namespace_from_resolved(resolved))
 
 
 if __name__ == "__main__":
