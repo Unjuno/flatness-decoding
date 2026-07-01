@@ -5,6 +5,9 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
+
+import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
@@ -40,6 +43,7 @@ def stable_unique(values: list[str]) -> list[str]:
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Run repeat-backed morphology generation grids and optional analysis.")
+    p.add_argument("--config", default=None, help="Optional YAML config describing the repeat-grid run.")
     p.add_argument("--conditions", action="append", default=[], help="Repeatable or comma-separated condition names.")
     p.add_argument("--methods", action="append", default=[], help="Repeatable or comma-separated n-trial methods.")
     p.add_argument("--prompt-limit", type=int, default=20)
@@ -63,6 +67,19 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--device", default="auto")
     p.add_argument("--dtype", default="auto")
     return p.parse_args()
+
+
+def load_config(path: str | None) -> dict[str, Any]:
+    if not path:
+        return {}
+    cfg_path = Path(path)
+    if not cfg_path.exists():
+        raise SystemExit(f"config not found: {cfg_path}")
+    with cfg_path.open("r", encoding="utf-8") as fh:
+        data = yaml.safe_load(fh) or {}
+    if not isinstance(data, dict):
+        raise SystemExit("config must be a YAML mapping")
+    return data
 
 
 def condition_rows(conditions: list[str]) -> list[str]:
@@ -96,6 +113,32 @@ def estimate_rows(max_prompts: int, repeat_count: int, n_values: list[int], meth
 
 def main() -> None:
     args = parse_args()
+
+    cfg = load_config(args.config)
+    if cfg:
+        if cfg.get("conditions") is not None and not args.conditions:
+            args.conditions = [str(v) for v in (cfg.get("conditions") or [])]
+        if cfg.get("methods") is not None and not args.methods:
+            args.methods = [str(v) for v in (cfg.get("methods") or [])]
+        args.prompt_limit = int(cfg.get("prompt_limit", args.prompt_limit))
+        args.repeat_count = int(cfg.get("repeat_count", args.repeat_count))
+        args.seed_start = int(cfg.get("seed_start", args.seed_start))
+        args.n_values = [int(v) for v in cfg.get("n_values", args.n_values)]
+        args.max_new_tokens = int(cfg.get("max_new_tokens", args.max_new_tokens))
+        args.analysis_preset = str(cfg.get("analysis_preset", args.analysis_preset))
+        args.skip_analysis = bool(cfg.get("skip_analysis", args.skip_analysis))
+        args.resume = bool(cfg.get("resume", args.resume))
+        args.allow_gemma = bool(cfg.get("allow_gemma", args.allow_gemma))
+        args.confirm_large_run = bool(cfg.get("confirm_large_run", args.confirm_large_run))
+        if cfg.get("model_cache_dir") is not None and args.model_cache_dir is None:
+            args.model_cache_dir = str(cfg.get("model_cache_dir"))
+        if cfg.get("local_files_only") is not None:
+            args.local_files_only = bool(cfg.get("local_files_only"))
+        if cfg.get("device") is not None:
+            args.device = str(cfg.get("device"))
+        if cfg.get("dtype") is not None:
+            args.dtype = str(cfg.get("dtype"))
+
     conditions = condition_rows(args.conditions)
     methods = stable_unique(parse_csv_like(args.methods) or DEFAULT_METHODS)
     generation_root = Path(args.generation_root)
@@ -113,6 +156,7 @@ def main() -> None:
     print("seed_start:", args.seed_start)
     print("n_values:", ", ".join(str(n) for n in args.n_values))
     print("analysis_preset:", args.analysis_preset)
+    print("config:", args.config or "none")
     print("estimated_generation_rows_per_condition:", generation_rows)
     print("estimated_token_log_rows_per_condition:", token_log_rows)
 

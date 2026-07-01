@@ -196,6 +196,14 @@ python scripts/schedule_morphology_repeat_grid.py 0
 
 That writes and launches `scripts/run_morphology_repeat_grid_job.sh`, which runs the fixed `qwen_raw`, `qwen_wrapped`, and `gpt2` repeat-grid job with `--resume`.
 
+For a config-driven run, use:
+
+```bash
+python scripts/run_morphology_repeat_grid.py --config configs/morphology_repeat_grid.yaml --execute
+```
+
+That keeps the fixed batch definition in one place and is the recommended entry point for long repeat-backed runs.
+
 ## Recommended commands
 
 Dry-run:
