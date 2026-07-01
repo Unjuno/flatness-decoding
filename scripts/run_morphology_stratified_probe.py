@@ -63,6 +63,14 @@ REGIME_FAMILIES = {
     },
 }
 
+TOKEN_TYPE_REGIMES = {
+    "markup_heavy": "markup_mass_top20",
+    "list_heavy": "newline_or_bullet_mass_top20",
+    "fragment_heavy": "subword_fragment_mass_top20",
+    "prompt_overlap_heavy": "prompt_overlap_mass_top20",
+    "recent_overlap_heavy": "recent_overlap_mass_top20",
+}
+
 SCALAR_FEATURES = [
     "logit_std",
     "logit_iqr",
@@ -105,6 +113,7 @@ MORPHOLOGY_COLUMNS = [
     "prompt_id",
     "prompt_index",
     "step",
+    "prompt",
     "candidate_pool_mode",
     "candidate_pool_size",
     "candidate_rank",
@@ -169,6 +178,7 @@ SELECTED_COLUMNS = [
     "prompt_id",
     "prompt_index",
     "step",
+    "prompt",
     "regime_family",
     "regime",
     "selected_rank_within_regime",
@@ -394,17 +404,6 @@ def candidate_regimes_for_family(values: list[float], family: str) -> dict[int, 
     return mapping
 
 
-def token_type_regime(values: dict[str, float]) -> str:
-    order = [
-        ("markup_mass_top20", "markup_heavy"),
-        ("newline_or_bullet_mass_top20", "list_heavy"),
-        ("subword_fragment_mass_top20", "fragment_heavy"),
-        ("prompt_overlap_mass_top20", "prompt_overlap_heavy"),
-        ("recent_overlap_mass_top20", "recent_overlap_heavy"),
-    ]
-    return max(order, key=lambda item: float(values.get(item[0], 0.0)))[1]
-
-
 def assign_regimes(candidate_rows: list[dict[str, Any]]) -> None:
     families = {
         "spread": [float(r["successor_logit_std"]) for r in candidate_rows],
@@ -413,13 +412,21 @@ def assign_regimes(candidate_rows: list[dict[str, Any]]) -> None:
         "gap": [float(r["successor_gap_1_2"]) for r in candidate_rows],
     }
     family_labels = {family: candidate_regimes_for_family(values, family) for family, values in families.items()}
+    token_type_thresholds = {
+        regime: quantile([float(row[feature]) for row in candidate_rows], 0.75)
+        for regime, feature in TOKEN_TYPE_REGIMES.items()
+    }
     for idx, row in enumerate(candidate_rows):
         assigned = []
         for family in ("spread", "concentration", "tail", "gap"):
             regime = family_labels[family].get(idx)
             if regime:
                 assigned.append(f"{family}:{regime}")
-        assigned.append(f"token_type:{token_type_regime(row)}")
+        for regime, feature in TOKEN_TYPE_REGIMES.items():
+            value = float(row[feature])
+            threshold = float(token_type_thresholds[regime])
+            if value > 0.0 and value >= threshold:
+                assigned.append(f"token_type:{regime}")
         row["assigned_regimes"] = ";".join(assigned)
 
 
@@ -708,6 +715,7 @@ def select_candidates(candidate_rows: list[dict[str, Any]], samples_per_regime: 
                     "prompt_id": row["prompt_id"],
                     "prompt_index": row["prompt_index"],
                     "step": row["step"],
+                    "prompt": row["prompt"],
                     "regime_family": family,
                     "regime": regime,
                     "selected_rank_within_regime": rank_within_regime,
@@ -754,7 +762,7 @@ def select_candidates(candidate_rows: list[dict[str, Any]], samples_per_regime: 
     return selected
 
 
-def probe_prompt(model, tokenizer, device, meta: ProbeConditionMeta, prompt_row: dict[str, Any], args: argparse.Namespace) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+def probe_prompt(model, tokenizer, device, meta: ProbeConditionMeta, prompt_row: dict[str, Any], args: argparse.Namespace) -> list[dict[str, Any]]:
     import torch
 
     prompt = str(prompt_row.get("prompt") or prompt_row.get("text") or "")
@@ -792,6 +800,7 @@ def probe_prompt(model, tokenizer, device, meta: ProbeConditionMeta, prompt_row:
                 "prompt_id": prompt_id,
                 "prompt_index": prompt_index,
                 "step": 0,
+                "prompt": prompt,
                 "candidate_pool_mode": args.candidate_pool_mode,
                 "candidate_pool_size": args.candidate_pool_size,
                 "candidate_rank": rank,
@@ -804,56 +813,25 @@ def probe_prompt(model, tokenizer, device, meta: ProbeConditionMeta, prompt_row:
                 **features,
             }
         )
-    assign_regimes(candidate_rows)
-    selected_rows = select_candidates(candidate_rows, args.samples_per_regime)
-    continuation_rows: list[dict[str, Any]] = []
-    if args.generate_continuations:
-        for row in selected_rows:
-            selected_prefix_ids = torch.cat([input_ids, torch.tensor([[int(row["candidate_token_id"])]], device=device)], dim=1)
-            generated_ids, continuation_text = continuation_generation(
-                model,
-                tokenizer,
-                device,
-                selected_prefix_ids,
-                args.continuation_decoding,
-                args.top_p,
-                args.continuation_max_new_tokens,
-            )
-            continuation_rows.append(
-                {
-                    "condition": meta.condition,
-                    "model_name": meta.model_name,
-                    "prompt_id": prompt_id,
-                    "step": 0,
-                    "regime": row["regime"],
-                    "candidate_token": row["candidate_token"],
-                    "prompt": prompt,
-                    "selected_prefix": f"{prompt}{row['candidate_token']}",
-                    "continuation_text": continuation_text,
-                    "generation_settings": json.dumps(
-                        {
-                            "generate_continuations": True,
-                            "continuation_max_new_tokens": args.continuation_max_new_tokens,
-                            "continuation_decoding": args.continuation_decoding,
-                            "top_p": args.top_p,
-                            "candidate_pool_mode": args.candidate_pool_mode,
-                            "candidate_pool_size": args.candidate_pool_size,
-                        },
-                        ensure_ascii=False,
-                    ),
-                    "output_mode_label": output_mode_label([continuation_text], prompt),
-                }
-            )
-    return candidate_rows, selected_rows, continuation_rows
+    return candidate_rows
 
 
-def summarize(candidate_rows: list[dict[str, Any]], selected_rows: list[dict[str, Any]], args: argparse.Namespace) -> list[dict[str, Any]]:
+def summarize(selected_rows: list[dict[str, Any]], args: argparse.Namespace) -> list[dict[str, Any]]:
     family_counts = defaultdict(int)
     for row in selected_rows:
         family_counts[(row["regime_family"], row["regime"])] += 1
-    prompt_count = len({row["prompt_id"] for row in candidate_rows})
+    prompt_count = len({row["prompt_id"] for row in selected_rows})
     summary_rows: list[dict[str, Any]] = []
-    for (family, regime), count in sorted(family_counts.items()):
+    all_regimes: list[tuple[str, str]] = []
+    for family, spec in REGIME_FAMILIES.items():
+        if family == "token_type":
+            continue
+        for regime in spec["regimes"]:
+            all_regimes.append((family, regime))
+    for regime in TOKEN_TYPE_REGIMES:
+        all_regimes.append(("token_type", regime))
+    for family, regime in all_regimes:
+        count = family_counts.get((family, regime), 0)
         selected = [row for row in selected_rows if row["regime_family"] == family and row["regime"] == regime]
         summary_rows.append(
             {
@@ -890,6 +868,9 @@ def write_report(out_dir: Path, candidate_rows: list[dict[str, Any]], selected_r
         f"- candidate_pool_size: {args.candidate_pool_size}",
         f"- samples_per_regime_requested: {args.samples_per_regime}",
         f"- samples_per_regime_observed: {len(selected_rows)}",
+        f"- total_regime_count: {sum(len(v['regimes']) for family, v in REGIME_FAMILIES.items() if family != 'token_type') + len(TOKEN_TYPE_REGIMES)}",
+        f"- global_selection: true",
+        f"- max_steps: {args.max_steps}",
         f"- generate_continuations: {args.generate_continuations}",
         "",
         "## Regime shortages",
@@ -904,18 +885,22 @@ def write_report(out_dir: Path, candidate_rows: list[dict[str, Any]], selected_r
             "",
             "## Notes",
             "",
-            "Prefer one candidate per prompt per regime before taking multiple candidates from the same prompt.",
+            "Selection is global across prompts within each condition, and it prefers one candidate per prompt per regime before reusing the same prompt.",
+            "This active probe currently uses step 0 / the initial prompt context only.",
             "Morphology-conditioned candidate selection is diagnostic, not a claim of quality improvement.",
+            "Token-type regimes are independent and may overlap.",
         ]
     )
     report.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def estimate_counts(n_prompts: int, candidate_pool_size: int, samples_per_regime: int, generate_continuations: bool) -> dict[str, int]:
-    candidate_rows = n_prompts * candidate_pool_size
-    selected_rows = n_prompts * samples_per_regime * len(REGIME_FAMILIES)
+def estimate_counts(n_conditions: int, n_prompts: int, candidate_pool_size: int, samples_per_regime: int, generate_continuations: bool) -> dict[str, int]:
+    candidate_rows = n_conditions * n_prompts * candidate_pool_size
+    total_regime_count = sum(len(v["regimes"]) for family, v in REGIME_FAMILIES.items() if family != "token_type") + len(TOKEN_TYPE_REGIMES)
+    selected_rows = n_conditions * samples_per_regime * total_regime_count
     continuation_rows = selected_rows if generate_continuations else 0
     return {
+        "total_regime_count": total_regime_count,
         "candidate_rows": candidate_rows,
         "selected_rows": selected_rows,
         "continuation_rows": continuation_rows,
@@ -935,6 +920,8 @@ def main() -> None:
     resolved["samples_per_regime"] = int(args.samples_per_regime or resolved.get("samples_per_regime", 20))
     resolved["max_prompts"] = int(args.max_prompts or resolved.get("max_prompts", 20))
     resolved["max_steps"] = int(args.max_steps or resolved.get("max_steps", 1))
+    if resolved["max_steps"] != 1:
+        raise SystemExit("this probe currently supports max_steps == 1 only")
     resolved["generate_continuations"] = bool(args.generate_continuations or resolved.get("generate_continuations", False))
     resolved["continuation_max_new_tokens"] = int(
         getattr(args, "continuation_max_new_tokens", resolved.get("continuation_max_new_tokens", 48))
@@ -944,6 +931,7 @@ def main() -> None:
     out_dir = Path(args.output_dir)
     safe_mkdir(out_dir)
     counts = estimate_counts(
+        len(resolved["conditions"]),
         resolved["max_prompts"],
         resolved["candidate_pool_size"],
         resolved["samples_per_regime"],
@@ -955,6 +943,7 @@ def main() -> None:
     print("samples_per_regime:", resolved["samples_per_regime"])
     print("max_prompts:", resolved["max_prompts"])
     print("max_steps:", resolved["max_steps"])
+    print("total_regime_count:", counts["total_regime_count"])
     print("generate_continuations:", resolved["generate_continuations"])
     print("continuation_max_new_tokens:", resolved["continuation_max_new_tokens"])
     print("estimated_candidate_rows:", counts["candidate_rows"])
@@ -990,9 +979,10 @@ def main() -> None:
         )
         try:
             for meta in metas:
+                condition_candidate_rows: list[dict[str, Any]] = []
                 prompt_rows = pool_prompt_rows(read_prompts(meta.prompt_path, resolved["max_prompts"]), resolved["max_prompts"])
                 for prompt_row in prompt_rows:
-                    candidate_rows, selected_rows, generation_rows = probe_prompt(model, tokenizer, device, meta, prompt_row, argparse.Namespace(**resolved))
+                    candidate_rows = probe_prompt(model, tokenizer, device, meta, prompt_row, argparse.Namespace(**resolved))
                     fresh_candidate_rows = []
                     for row in candidate_rows:
                         key = (
@@ -1005,47 +995,89 @@ def main() -> None:
                         if key in completed_candidates:
                             continue
                         fresh_candidate_rows.append(row)
-                    fresh_selected_rows = []
-                    for row in selected_rows:
-                        key = (
-                            row["condition"],
-                            row["prompt_id"],
-                            row["regime_family"],
-                            int(row["step"]),
-                            int(row["candidate_rank"]),
-                            int(row["candidate_token_id"]),
-                        )
-                        if key in completed_selected:
-                            continue
-                        fresh_selected_rows.append(row)
-                    fresh_generation_rows = []
-                    for row in generation_rows:
-                        key = (
-                            str(row.get("condition", "")),
-                            str(row.get("prompt_id", "")),
-                            str(row.get("regime", "")),
-                            int(row.get("step", 0)),
-                            int(row.get("candidate_rank", 0)),
-                            int(row.get("candidate_token_id", -1)),
-                        )
-                        if key in completed_generation:
-                            continue
-                        fresh_generation_rows.append(row)
-                    write_rows(candidate_path, fresh_candidate_rows, MORPHOLOGY_COLUMNS)
-                    write_rows(selected_path, fresh_selected_rows, SELECTED_COLUMNS)
-                    if fresh_generation_rows:
-                        with generation_path.open("a" if generation_path.exists() else "w", encoding="utf-8") as fh:
-                            for row in fresh_generation_rows:
-                                fh.write(json.dumps(row, ensure_ascii=False) + "\n")
-                    all_candidate_rows.extend(fresh_candidate_rows)
-                    all_selected_rows.extend(fresh_selected_rows)
-                    all_generation_rows.extend(fresh_generation_rows)
+                    condition_candidate_rows.extend(fresh_candidate_rows)
                     clear_probe_memory()
+                assign_regimes(condition_candidate_rows)
+                selected_rows = select_candidates(condition_candidate_rows, resolved["samples_per_regime"])
+                fresh_selected_rows = []
+                for row in selected_rows:
+                    key = (
+                        row["condition"],
+                        row["prompt_id"],
+                        row["regime_family"],
+                        int(row["step"]),
+                        int(row["candidate_rank"]),
+                        int(row["candidate_token_id"]),
+                    )
+                    if key in completed_selected:
+                        continue
+                    fresh_selected_rows.append(row)
+                fresh_generation_rows = []
+                if resolved["generate_continuations"]:
+                    for row in fresh_selected_rows:
+                        prompt_ids = tokenizer(str(row.get("prompt", "")), return_tensors="pt", add_special_tokens=False)["input_ids"].to(device)
+                        selected_prefix_ids = torch.cat(
+                            [prompt_ids, torch.tensor([[int(row["candidate_token_id"])]], device=device)],
+                            dim=1,
+                        )
+                        generated_ids, continuation_text = continuation_generation(
+                            model,
+                            tokenizer,
+                            device,
+                            selected_prefix_ids,
+                            resolved["continuation_decoding"],
+                            resolved["top_p"],
+                            resolved["continuation_max_new_tokens"],
+                        )
+                        row_prompt = str(row.get("prompt", ""))
+                        fresh_generation_rows.append(
+                            {
+                                "condition": row["condition"],
+                                "model_name": row["model_name"],
+                                "prompt_id": row["prompt_id"],
+                                "step": row["step"],
+                                "regime": row["regime"],
+                                "candidate_rank": row["candidate_rank"],
+                                "candidate_token": row["candidate_token"],
+                                "prompt": row_prompt,
+                                "selected_prefix": f"{row_prompt}{row['candidate_token']}",
+                                "continuation_text": continuation_text,
+                                "generation_settings": json.dumps(
+                                    {
+                                        "generate_continuations": True,
+                                        "continuation_max_new_tokens": resolved["continuation_max_new_tokens"],
+                                        "continuation_decoding": resolved["continuation_decoding"],
+                                        "top_p": resolved["top_p"],
+                                        "candidate_pool_mode": resolved["candidate_pool_mode"],
+                                        "candidate_pool_size": resolved["candidate_pool_size"],
+                                    },
+                                    ensure_ascii=False,
+                                ),
+                                "output_mode_label": output_mode_label([continuation_text], row_prompt),
+                            }
+                        )
+                fresh_generation_rows = [row for row in fresh_generation_rows if (
+                    str(row.get("condition", "")),
+                    str(row.get("prompt_id", "")),
+                    str(row.get("regime", "")),
+                    int(row.get("step", 0)),
+                    int(row.get("candidate_rank", 0)),
+                    int(row.get("candidate_token_id", -1)),
+                ) not in completed_generation]
+                write_rows(candidate_path, condition_candidate_rows, MORPHOLOGY_COLUMNS)
+                write_rows(selected_path, fresh_selected_rows, SELECTED_COLUMNS)
+                if fresh_generation_rows:
+                    with generation_path.open("a" if generation_path.exists() else "w", encoding="utf-8") as fh:
+                        for row in fresh_generation_rows:
+                            fh.write(json.dumps(row, ensure_ascii=False) + "\n")
+                all_candidate_rows.extend(condition_candidate_rows)
+                all_selected_rows.extend(fresh_selected_rows)
+                all_generation_rows.extend(fresh_generation_rows)
         finally:
             del model, tokenizer
             clear_probe_memory()
 
-    summary_rows = summarize(all_candidate_rows, all_selected_rows, argparse.Namespace(**resolved))
+    summary_rows = summarize(all_selected_rows, argparse.Namespace(**resolved))
     write_rows(out_dir / "morphology_stratified_probe_summary.csv", summary_rows, list(summary_rows[0].keys()) if summary_rows else ["regime_family", "regime"])
     write_report(out_dir, all_candidate_rows, all_selected_rows, summary_rows, argparse.Namespace(**resolved))
 

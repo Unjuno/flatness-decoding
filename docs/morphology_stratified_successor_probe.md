@@ -17,7 +17,7 @@ For each prompt/context:
 4. For each candidate, append the candidate to the context and compute successor logits.
 5. Measure successor distribution morphology on those successor logits.
 6. Stratify candidates into morphology regimes.
-7. Select up to `samples_per_regime` candidates per regime, preferring one candidate per prompt before reusing the same prompt.
+7. Select up to `samples_per_regime` candidates per regime globally across prompts, preferring one candidate per prompt before reusing the same prompt.
 8. Optionally generate short continuations from the selected candidates.
 
 ## Morphology regimes
@@ -31,6 +31,8 @@ The probe uses the same morphology families as the analysis script, but to *sele
 - `token type`: `markup_heavy`, `list_heavy`, `fragment_heavy`, `prompt_overlap_heavy`, `recent_overlap_heavy`
 
 The selection step is morphology-conditioned candidate selection. It is still diagnostic, not a claim of quality improvement.
+Token-type regimes are independent and may overlap on the same candidate.
+Selection is global across prompts within each condition, not per prompt.
 
 ## Candidate-pool modes
 
@@ -89,6 +91,11 @@ For token-type heavy regimes, candidates are ranked by the relevant token-type m
 - Gemma requires `--allow-gemma`.
 - Candidate pools above 200 are refused unless `--confirm-large-run` is provided.
 - One model is loaded at a time.
+- `samples_per_regime` means the total selected candidates per regime across prompts, not per prompt.
+- Selection prefers one candidate per prompt before reusing the same prompt.
+- This active probe currently uses step 0 / the initial prompt context only.
+- If `max_steps > 1` is requested, the script errors for now.
+- The total regime count is 17: 3 spread + 3 concentration + 3 tail + 3 gap + 5 token-type regimes.
 
 ## Validation
 
