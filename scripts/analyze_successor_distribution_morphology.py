@@ -279,6 +279,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--output-dir", default=str(OUTPUT_DIR_DEFAULT))
     p.add_argument("--model-cache-dir", default=None)
     p.add_argument("--local-files-only", action="store_true")
+    p.add_argument("--generation-dir", default=None, help="Override the generation directory for a single-condition run.")
+    p.add_argument("--token-log-dir", default=None, help="Override the token-log directory for a single-condition run.")
     p.add_argument("--device", default="auto")
     p.add_argument("--dtype", default="auto")
     p.add_argument("--repeat-count", type=int, default=None)
@@ -303,7 +305,7 @@ def merge_setting(args_value: Any, preset_value: Any, fallback: Any) -> Any:
     return fallback
 
 
-def condition_meta(condition: str) -> ConditionMeta:
+def condition_meta(condition: str, generation_dir_override: str | None = None, token_log_dir_override: str | None = None) -> ConditionMeta:
     spec = CONDITION_SPECS.get(condition)
     if spec is None:
         raise SystemExit(f"unknown condition: {condition}")
@@ -313,6 +315,10 @@ def condition_meta(condition: str) -> ConditionMeta:
     tok_dir = spec.get("token_log_dir")
     if isinstance(tok_dir, str):
         tok_dir = ROOT / tok_dir
+    if generation_dir_override is not None:
+        gen_dir = Path(generation_dir_override)
+    if token_log_dir_override is not None:
+        tok_dir = Path(token_log_dir_override)
     return ConditionMeta(
         condition=condition,
         model_name=spec["model_name"],
@@ -325,10 +331,10 @@ def condition_meta(condition: str) -> ConditionMeta:
     )
 
 
-def group_by_model(conditions: list[str]) -> dict[str, list[ConditionMeta]]:
+def group_by_model(conditions: list[str], generation_dir_override: str | None = None, token_log_dir_override: str | None = None) -> dict[str, list[ConditionMeta]]:
     grouped: dict[str, list[ConditionMeta]] = {}
     for cond in conditions:
-        meta = condition_meta(cond)
+        meta = condition_meta(cond, generation_dir_override=generation_dir_override, token_log_dir_override=token_log_dir_override)
         grouped.setdefault(meta.model_name, []).append(meta)
     return grouped
 
@@ -1071,14 +1077,14 @@ def main() -> None:
     args.seed_count = int(preset["seed_count"])
     args.bootstrap_samples = int(preset["bootstrap_samples"])
     args.methods = methods
-    targets = [condition_meta(c) for c in conditions]
+    targets = [condition_meta(c, generation_dir_override=args.generation_dir, token_log_dir_override=args.token_log_dir) for c in conditions]
     maybe_gate(args, targets)
     out_dir = Path(args.output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     print_plan(targets, methods, args)
     if args.estimate_only or not args.execute:
         return
-    grouped = group_by_model(conditions)
+    grouped = group_by_model(conditions, generation_dir_override=args.generation_dir, token_log_dir_override=args.token_log_dir)
     all_rows: list[dict[str, Any]] = []
     for model_name, metas in grouped.items():
         all_rows.extend(run_model_group(model_name, metas, args, out_dir))

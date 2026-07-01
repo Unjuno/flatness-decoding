@@ -172,6 +172,22 @@ python scripts/run_sweep_n.py \
 That gives 20 repeat-backed generations per prompt. You can then run the morphology analysis script over the resulting generation directory.
 If the generation job is interrupted, re-run it with `--resume`; completed prompt/seed groups will be skipped.
 
+### One-command launcher
+
+For a repeat-backed morphology run that generates and then analyzes condition-by-condition, use:
+
+```bash
+python scripts/run_morphology_repeat_grid.py \
+  --conditions qwen_raw \
+  --prompt-limit 20 \
+  --repeat-count 20 \
+  --seed-start 0 \
+  --execute \
+  --resume
+```
+
+Add more conditions as needed. The launcher processes one model at a time, writes repeat-backed generation outputs, and can optionally run the successor morphology analysis immediately after each condition.
+
 ## Recommended commands
 
 Dry-run:
