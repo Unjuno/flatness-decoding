@@ -188,6 +188,14 @@ python scripts/run_morphology_repeat_grid.py \
 
 Add more conditions as needed. The launcher processes one model at a time, writes repeat-backed generation outputs, and can optionally run the successor morphology analysis immediately after each condition.
 
+For a delayed or backgrounded launch, use:
+
+```bash
+python scripts/schedule_morphology_repeat_grid.py 0
+```
+
+That writes and launches `scripts/run_morphology_repeat_grid_job.sh`, which runs the fixed `qwen_raw`, `qwen_wrapped`, and `gpt2` repeat-grid job with `--resume`.
+
 ## Recommended commands
 
 Dry-run:
