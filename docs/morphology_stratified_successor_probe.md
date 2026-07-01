@@ -96,6 +96,8 @@ For token-type heavy regimes, candidates are ranked by the relevant token-type m
 - This active probe currently uses step 0 / the initial prompt context only.
 - If `max_steps > 1` is requested, the script errors for now.
 - The total regime count is 17: 3 spread + 3 concentration + 3 tail + 3 gap + 5 token-type regimes.
+- `morphology_stratified_candidate_morphology.csv` and `morphology_stratified_selected_candidates.csv` append across runs; use `--resume` for repeated runs.
+- `morphology_stratified_probe_summary.csv` and `morphology_stratified_probe_report.md` are overwritten each run from the on-disk selected rows when available.
 
 ## Validation
 

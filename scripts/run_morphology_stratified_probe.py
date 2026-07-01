@@ -552,6 +552,13 @@ def load_completed_selected_keys(path: Path) -> set[tuple[str, str, str, int, in
     return completed
 
 
+def read_selected_rows(path: Path) -> list[dict[str, Any]]:
+    if not path.exists():
+        return []
+    with path.open("r", encoding="utf-8", newline="") as fh:
+        return list(csv.DictReader(fh))
+
+
 def load_completed_generation_keys(path: Path) -> set[tuple[str, str, str, int, int, int]]:
     if not path.exists():
         return set()
@@ -1038,6 +1045,7 @@ def main() -> None:
                                 "step": row["step"],
                                 "regime": row["regime"],
                                 "candidate_rank": row["candidate_rank"],
+                                "candidate_token_id": int(row["candidate_token_id"]),
                                 "candidate_token": row["candidate_token"],
                                 "prompt": row_prompt,
                                 "selected_prefix": f"{row_prompt}{row['candidate_token']}",
@@ -1077,9 +1085,10 @@ def main() -> None:
             del model, tokenizer
             clear_probe_memory()
 
-    summary_rows = summarize(all_selected_rows, argparse.Namespace(**resolved))
+    full_selected_rows = read_selected_rows(selected_path) if selected_path.exists() else all_selected_rows
+    summary_rows = summarize(full_selected_rows, argparse.Namespace(**resolved))
     write_rows(out_dir / "morphology_stratified_probe_summary.csv", summary_rows, list(summary_rows[0].keys()) if summary_rows else ["regime_family", "regime"])
-    write_report(out_dir, all_candidate_rows, all_selected_rows, summary_rows, argparse.Namespace(**resolved))
+    write_report(out_dir, all_candidate_rows, full_selected_rows, summary_rows, argparse.Namespace(**resolved))
 
 
 if __name__ == "__main__":
