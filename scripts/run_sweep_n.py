@@ -33,11 +33,23 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--seeds", nargs="+", type=int, default=[0])
     parser.add_argument("--repeat-count", type=int, default=None, help="Generate this many seed replicates when --seeds is not provided.")
     parser.add_argument("--seed-start", type=int, default=0, help="First seed to use when synthesizing a repeat grid.")
+    parser.add_argument("--resume", action="store_true", help="Skip generation groups whose output files already look complete.")
     parser.add_argument("--device", default="auto")
     parser.add_argument("--dtype", default="auto")
     parser.add_argument("--output-dir", default="outputs/generations/sweep")
     parser.add_argument("--token-log-dir", default="outputs/token_logs/sweep")
     return parser.parse_args()
+
+
+def is_group_complete(output_path: Path, token_log_path: Path, expected_rows: int) -> bool:
+    if not output_path.exists() or not token_log_path.exists():
+        return False
+    try:
+        gen_rows = read_jsonl(output_path)
+        tok_rows = read_jsonl(token_log_path)
+    except Exception:
+        return False
+    return len(gen_rows) == expected_rows and len(tok_rows) > 0
 
 
 def main() -> None:
@@ -63,6 +75,13 @@ def main() -> None:
     for method in args.methods:
         for n_trials in args.n_values:
             for repeat_index, seed in enumerate(seeds):
+                stem = f"model={args.model.replace('/', '__')}_method={method}_n={n_trials}_temp={args.proposal_temperature}_seed={seed}"
+                output_path = output_dir / f"{stem}.jsonl"
+                token_log_path = token_log_dir / f"{stem}.tokenlog.jsonl"
+                if args.resume and is_group_complete(output_path, token_log_path, len(prompts)):
+                    print(f"skip complete group: {output_path}")
+                    continue
+
                 generations: list[dict] = []
                 token_records: list[dict] = []
 
@@ -105,9 +124,8 @@ def main() -> None:
                         record_row["model"] = args.model
                         token_records.append(record_row)
 
-                stem = f"model={args.model.replace('/', '__')}_method={method}_n={n_trials}_temp={args.proposal_temperature}_seed={seed}"
-                write_jsonl(output_dir / f"{stem}.jsonl", generations)
-                write_jsonl(token_log_dir / f"{stem}.tokenlog.jsonl", token_records)
+                write_jsonl(output_path, generations)
+                write_jsonl(token_log_path, token_records)
 
 
 if __name__ == "__main__":

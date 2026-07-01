@@ -165,10 +165,12 @@ python scripts/run_sweep_n.py \
   --methods random minflat maxflat centerflat_q50 centerflat_q75 highprob_centerflat \
   --n-values 1 4 8 16 \
   --repeat-count 20 \
-  --seed-start 0
+  --seed-start 0 \
+  --resume
 ```
 
 That gives 20 repeat-backed generations per prompt. You can then run the morphology analysis script over the resulting generation directory.
+If the generation job is interrupted, re-run it with `--resume`; completed prompt/seed groups will be skipped.
 
 ## Recommended commands
 
