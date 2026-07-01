@@ -64,11 +64,11 @@ REGIME_FAMILIES = {
 }
 
 TOKEN_TYPE_REGIMES = {
-    "markup_heavy": "markup_mass_top20",
-    "list_heavy": "newline_or_bullet_mass_top20",
-    "fragment_heavy": "subword_fragment_mass_top20",
-    "prompt_overlap_heavy": "prompt_overlap_mass_top20",
-    "recent_overlap_heavy": "recent_overlap_mass_top20",
+    "markup_heavy": "successor_markup_mass_top20",
+    "list_heavy": "successor_newline_or_bullet_mass_top20",
+    "fragment_heavy": "successor_subword_fragment_mass_top20",
+    "prompt_overlap_heavy": "successor_prompt_overlap_mass_top20",
+    "recent_overlap_heavy": "successor_recent_overlap_mass_top20",
 }
 
 SCALAR_FEATURES = [
@@ -501,7 +501,7 @@ def write_rows(path: Path, rows: list[dict[str, Any]], columns: list[str]) -> No
     safe_mkdir(path.parent)
     write_header = not path.exists()
     with path.open("a" if not write_header else "w", encoding="utf-8", newline="") as fh:
-        writer = csv.DictWriter(fh, fieldnames=columns)
+        writer = csv.DictWriter(fh, fieldnames=columns, extrasaction="ignore")
         if write_header:
             writer.writeheader()
         writer.writerows(rows)
@@ -933,6 +933,9 @@ def main() -> None:
     resolved["continuation_max_new_tokens"] = int(
         getattr(args, "continuation_max_new_tokens", resolved.get("continuation_max_new_tokens", 48))
     )
+    resolved["continuation_decoding"] = args.continuation_decoding
+    resolved["top_p"] = float(args.top_p)
+    resolved["temperature"] = float(args.temperature)
     targets = [load_condition_meta(cond) for cond in resolved["conditions"]]
     maybe_gate(args, targets)
     out_dir = Path(args.output_dir)
@@ -962,7 +965,13 @@ def main() -> None:
     if resolved["candidate_pool_size"] > 200 and not args.confirm_large_run:
         raise SystemExit("refusing candidate_pool_size > 200 without --confirm-large-run")
 
-    from flatness_decoding.model_io import load_causal_lm
+    try:
+        from flatness_decoding.model_io import load_causal_lm
+    except ModuleNotFoundError as exc:
+        raise SystemExit(
+            "execute mode requires torch and the model stack to be installed; "
+            "install the project runtime environment before using --execute"
+        ) from exc
 
     grouped = split_prompts_by_model(targets)
     all_candidate_rows: list[dict[str, Any]] = []
