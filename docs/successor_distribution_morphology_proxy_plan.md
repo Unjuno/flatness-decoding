@@ -114,6 +114,7 @@ That matters because modern instruction-tuned models can consume substantial mem
 - `gemma_wrapped10`: wrapped Gemma probe; requires `--allow-gemma`
 - `modern_compare`: Gemma wrapped plus Qwen wrapped/chat if available
 - `morphology_20x20_top20`: prompt_count=20, repeat_count=20, top_k=20, max_steps=20
+- `morphology_repeat_grid_fixed_models.yaml`: long repeat-backed batch for distilgpt2, gpt2, Gemma 2 2B, Gemma 3 4B-it, Qwen2.5 0.5B, and Qwen2.5 1.5B-Instruct raw/wrapped conditions
 
 `prompt_count`, `repeat_count`, and `top_k` are separate axes:
 
@@ -203,6 +204,38 @@ python scripts/run_morphology_repeat_grid.py --config configs/morphology_repeat_
 ```
 
 That keeps the fixed batch definition in one place and is the recommended entry point for long repeat-backed runs.
+
+For the longer fixed-model batch, use:
+
+```bash
+python scripts/run_morphology_repeat_grid.py \
+  --config configs/morphology_repeat_grid_fixed_models.yaml \
+  --execute \
+  --resume
+```
+
+That config groups the available model families into one repeat-backed batch:
+
+- `distilgpt2_raw`
+- `gpt2`
+- `qwen25_05b_raw`
+- `qwen25_05b_wrapped`
+- `qwen_raw`
+- `qwen_wrapped`
+- `gemma2_raw`
+- `gemma2_wrapped`
+- `gemma_raw`
+- `gemma_wrapped`
+
+The launcher still processes one model at a time and keeps the analysis stage repeat-aware. Use `--allow-gemma` when the batch includes Gemma conditions.
+
+To schedule the same batch in the background, use:
+
+```bash
+python scripts/schedule_morphology_repeat_grid_fixed_models.py 0
+```
+
+That writes and launches `scripts/run_morphology_repeat_grid_fixed_models_job.sh`, which runs the same fixed config with `--resume`.
 
 ## Recommended commands
 

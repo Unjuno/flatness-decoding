@@ -38,6 +38,14 @@ CONDITION_SPECS: dict[str, dict[str, Any]] = {
         ],
         "notes": "GPT-2 path is ambiguous; set a local path explicitly before execution.",
     },
+    "distilgpt2_raw": {
+        "model_name": "distilgpt2",
+        "prompt_mode": "raw_writingprompts",
+        "prompt_path": ROOT / "prompts" / "writingprompts_fixed_100.jsonl",
+        "generation_dir": ROOT / "outputs" / "generations" / "comparison_distilgpt2_writingprompts",
+        "token_log_dir": ROOT / "outputs" / "token_logs" / "comparison_distilgpt2_writingprompts",
+        "notes": "GPT small baseline using the existing distilgpt2 writingprompts outputs.",
+    },
     "gemma_raw": {
         "model_name": "google/gemma-3-4b-it",
         "prompt_mode": "raw_writingprompts",
@@ -45,6 +53,15 @@ CONDITION_SPECS: dict[str, dict[str, Any]] = {
         "generation_dir": ROOT / "results" / "gemma3_4b_it_smoke" / "generations",
         "token_log_dir": None,
         "notes": "Raw writingprompts stress test.",
+        "requires_allow_gemma": True,
+    },
+    "gemma2_raw": {
+        "model_name": "google/gemma-2-2b",
+        "prompt_mode": "raw_writingprompts",
+        "prompt_path": ROOT / "prompts" / "writingprompts_fixed_100.jsonl",
+        "generation_dir": ROOT / "results" / "gemma2_2b_raw" / "10" / "generations",
+        "token_log_dir": ROOT / "results" / "gemma2_2b_raw" / "10" / "token_logs",
+        "notes": "Gemma 2 2B raw-writingprompts probe.",
         "requires_allow_gemma": True,
     },
     "gemma_wrapped": {
@@ -56,6 +73,15 @@ CONDITION_SPECS: dict[str, dict[str, Any]] = {
         "notes": "Default to wrapped10; 20x20 must be provided explicitly later.",
         "requires_allow_gemma": True,
     },
+    "gemma2_wrapped": {
+        "model_name": "google/gemma-2-2b",
+        "prompt_mode": "explicit_story_continuation_wrapper",
+        "prompt_path": ROOT / "prompts" / "writingprompts_fixed_100_gemma_wrapped.jsonl",
+        "generation_dir": ROOT / "modern_model_probes" / "gemma2_2b_wrapped_10" / "generations",
+        "token_log_dir": ROOT / "modern_model_probes" / "gemma2_2b_wrapped_10" / "token_logs",
+        "notes": "Gemma 2 2B wrapped-writingprompts probe.",
+        "requires_allow_gemma": True,
+    },
     "qwen_raw": {
         "model_name": "Qwen/Qwen2.5-1.5B-Instruct",
         "prompt_mode": "raw_writingprompts",
@@ -64,6 +90,14 @@ CONDITION_SPECS: dict[str, dict[str, Any]] = {
         "token_log_dir": ROOT / "results" / "qwen2_5_1_5b_instruct_raw" / "10" / "token_logs",
         "notes": "Plain causal prompting stress test.",
     },
+    "qwen25_05b_raw": {
+        "model_name": "Qwen/Qwen2.5-0.5B",
+        "prompt_mode": "raw_writingprompts",
+        "prompt_path": ROOT / "prompts" / "writingprompts_fixed_100.jsonl",
+        "generation_dir": ROOT / "outputs" / "generations" / "comparison_qwen25_05b_micro",
+        "token_log_dir": ROOT / "outputs" / "token_logs" / "comparison_qwen25_05b_micro",
+        "notes": "Qwen2.5 0.5B raw-writingprompts micro probe.",
+    },
     "qwen_wrapped": {
         "model_name": "Qwen/Qwen2.5-1.5B-Instruct",
         "prompt_mode": "explicit_story_continuation_wrapper",
@@ -71,6 +105,14 @@ CONDITION_SPECS: dict[str, dict[str, Any]] = {
         "generation_dir": ROOT / "results" / "qwen2_5_1_5b_instruct_wrapped" / "10" / "generations",
         "token_log_dir": ROOT / "results" / "qwen2_5_1_5b_instruct_wrapped" / "10" / "token_logs",
         "notes": "Plain causal prompting stress test; not best-faith chat behavior.",
+    },
+    "qwen25_05b_wrapped": {
+        "model_name": "Qwen/Qwen2.5-0.5B",
+        "prompt_mode": "explicit_story_continuation_wrapper",
+        "prompt_path": ROOT / "prompts" / "writingprompts_fixed_100_gemma_wrapped.jsonl",
+        "generation_dir": ROOT / "outputs" / "generations" / "comparison_qwen25_05b_micro",
+        "token_log_dir": ROOT / "outputs" / "token_logs" / "comparison_qwen25_05b_micro",
+        "notes": "Qwen2.5 0.5B wrapped-writingprompts micro probe.",
     },
     "qwen_chat_wrapped": {
         "model_name": "Qwen/Qwen2.5-1.5B-Instruct",

@@ -1,0 +1,37 @@
+conditions:
+  - distilgpt2_raw
+  - gpt2
+  - qwen25_05b_raw
+  - qwen25_05b_wrapped
+  - qwen_raw
+  - qwen_wrapped
+  - gemma2_raw
+  - gemma2_wrapped
+  - gemma_raw
+  - gemma_wrapped
+methods:
+  - random
+  - minflat
+  - maxflat
+  - centerflat_q25
+  - centerflat_q50
+  - centerflat_q75
+  - highprob_centerflat
+prompt_limit: 20
+repeat_count: 20
+seed_start: 0
+n_values:
+  - 1
+  - 4
+  - 8
+  - 16
+max_new_tokens: 60
+analysis_preset: morphology_20x20_top20
+resume: true
+skip_analysis: false
+allow_gemma: false
+confirm_large_run: false
+model_cache_dir: models/hf
+device: auto
+dtype: auto
+local_files_only: false
