@@ -6,6 +6,7 @@ This note describes the active probe that complements the existing successor dis
 
 The probe is diagnostic. It does not claim quality improvement and it does not claim robust format control.
 Its purpose is to test whether candidate-induced successor distribution morphology differs across morphology regimes.
+It is a selection-and-dump probe, not the generation system itself.
 
 ## What it does
 
@@ -65,6 +66,8 @@ For token-type heavy regimes, candidates are ranked by the relevant token-type m
 - `results/analysis/morphology_stratified_probe_summary.csv`
 - `results/analysis/morphology_stratified_probe_report.md`
 
+If you need 20-replicate statistical comparisons, the repeated generations must come from the generation stage (`repeat_count=20`, `seed_count=20`) and then be analyzed by this probe or by the successor morphology analysis script.
+
 ## Presets
 
 - `morphology_probe_smoke`
@@ -98,6 +101,7 @@ For token-type heavy regimes, candidates are ranked by the relevant token-type m
 - Selection prefers one candidate per prompt before reusing the same prompt.
 - This active probe currently uses step 0 / the initial prompt context only.
 - If `max_steps > 1` is requested, the script errors for now.
+- For statistical comparisons over output modes, use repeat-backed generation outputs and then aggregate by `seed` / `repeat_index`; this probe does not synthesize 20 stochastic repeats by itself.
 - The total regime count is 17: 3 spread + 3 concentration + 3 tail + 3 gap + 5 token-type regimes.
 - `morphology_stratified_candidate_morphology.csv` and `morphology_stratified_selected_candidates.csv` append across runs; use `--resume` for repeated runs.
 - `morphology_stratified_probe_summary.csv` and `morphology_stratified_probe_report.md` are overwritten each run from the on-disk selected rows when available.

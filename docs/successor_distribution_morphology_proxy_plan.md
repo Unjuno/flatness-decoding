@@ -140,6 +140,19 @@ The script should skip already completed rows when `--resume` is used. The compl
 
 For the 20x20 preset, actual repeated generation outputs are required to observe repeat_count > 1. If the stored generations only contain a single seed/repeat, the report will show the observed count and a warning instead of fabricating repetitions.
 
+## Statistical comparison plan
+
+If the goal is to compare output modes statistically, use a repeat-backed generation run first and then analyze the resulting generations:
+
+- `prompt_count = 20`
+- `repeat_count = 20`
+- `seed_count = 20`
+- fixed prompt set from the dataset-backed prompt file
+
+That gives 20 repeated generations per prompt, which is the right unit for comparing mode rates and morphology-band differences across conditions. The analysis then groups by prompt and repeat, computes feature summaries, and can bootstrap over prompts as the primary unit.
+
+The active morphology-stratified probe is separate: it dumps the full candidate pool and also produces regime-stratified samples. It is useful for selecting candidate regimes, but it does not itself synthesize stochastic repeats.
+
 ## Recommended commands
 
 Dry-run:
