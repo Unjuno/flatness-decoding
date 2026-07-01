@@ -57,6 +57,8 @@ For token-type heavy regimes, candidates are ranked by the relevant token-type m
 
 ## Outputs
 
+- `morphology_stratified_candidate_morphology.csv` is the exhaustive candidate dump. It records every candidate in the pool for every selected prompt.
+- `morphology_stratified_selected_candidates.csv` is the regime-stratified subset used for comparison and diagnostics.
 - `results/analysis/morphology_stratified_candidate_morphology.csv`
 - `results/analysis/morphology_stratified_selected_candidates.csv`
 - `results/analysis/morphology_stratified_probe_generations.jsonl`
@@ -91,6 +93,7 @@ For token-type heavy regimes, candidates are ranked by the relevant token-type m
 - Gemma requires `--allow-gemma`.
 - Candidate pools above 200 are refused unless `--confirm-large-run` is provided.
 - One model is loaded at a time.
+- The exhaustive candidate dump is `morphology_stratified_candidate_morphology.csv`; that is the artifact to compare against the older flatness-style “full dump” workflow.
 - `samples_per_regime` means the total selected candidates per regime across prompts, not per prompt.
 - Selection prefers one candidate per prompt before reusing the same prompt.
 - This active probe currently uses step 0 / the initial prompt context only.

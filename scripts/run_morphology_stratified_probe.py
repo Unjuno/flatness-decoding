@@ -466,7 +466,7 @@ def pool_prompt_rows(prompt_rows: list[dict[str, Any]], max_prompts: int) -> lis
     out: list[dict[str, Any]] = []
     seen = set()
     for row in prompt_rows:
-        prompt_id = str(row.get("prompt_id", ""))
+        prompt_id = str(row.get("prompt_id") or row.get("id") or "")
         if prompt_id in seen:
             continue
         seen.add(prompt_id)
@@ -523,6 +523,16 @@ def write_rows(path: Path, rows: list[dict[str, Any]], columns: list[str]) -> No
         writer = csv.DictWriter(fh, fieldnames=columns, extrasaction="ignore")
         if write_header:
             writer.writeheader()
+        writer.writerows(rows)
+
+
+def write_rows_overwrite(path: Path, rows: list[dict[str, Any]], columns: list[str]) -> None:
+    if not rows:
+        return
+    safe_mkdir(path.parent)
+    with path.open("w", encoding="utf-8", newline="") as fh:
+        writer = csv.DictWriter(fh, fieldnames=columns, extrasaction="ignore")
+        writer.writeheader()
         writer.writerows(rows)
 
 
@@ -1116,7 +1126,7 @@ def main() -> None:
 
     full_selected_rows = read_selected_rows(selected_path) if selected_path.exists() else all_selected_rows
     summary_rows = summarize(full_selected_rows, namespace_from_resolved(resolved))
-    write_rows(out_dir / "morphology_stratified_probe_summary.csv", summary_rows, list(summary_rows[0].keys()) if summary_rows else ["regime_family", "regime"])
+    write_rows_overwrite(out_dir / "morphology_stratified_probe_summary.csv", summary_rows, list(summary_rows[0].keys()) if summary_rows else ["regime_family", "regime"])
     write_report(out_dir, all_candidate_rows, full_selected_rows, summary_rows, namespace_from_resolved(resolved))
 
 
