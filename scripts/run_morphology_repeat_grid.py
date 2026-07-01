@@ -124,6 +124,10 @@ def main() -> None:
         spec = CONDITION_SPECS[condition]
         if spec.get("requires_allow_gemma") and not args.allow_gemma:
             raise SystemExit(f"refusing {condition} without --allow-gemma")
+        if args.prompt_limit > 100 and not args.confirm_large_run:
+            raise SystemExit("--prompt-limit > 100 requires --confirm-large-run")
+        if args.repeat_count > 20 and not args.confirm_large_run:
+            raise SystemExit("--repeat-count > 20 requires --confirm-large-run")
         gen_dir, tok_dir = generation_dirs_for_condition(condition, generation_root)
         gen_dir.parent.mkdir(parents=True, exist_ok=True)
         tok_dir.parent.mkdir(parents=True, exist_ok=True)
@@ -205,6 +209,8 @@ def main() -> None:
 
         print(f"running morphology analysis for {condition} -> {analysis_dir}")
         subprocess.run(analysis_cmd, check=True, cwd=ROOT, env=env)
+
+    print("repeat-grid run complete")
 
 
 if __name__ == "__main__":
