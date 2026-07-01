@@ -9,17 +9,30 @@ from flatness_decoding.decoding import generate_flatness_controlled
 from flatness_decoding.io_utils import read_jsonl, write_jsonl
 from flatness_decoding.model_io import load_causal_lm
 
+METHOD_CHOICES = [
+    "random",
+    "minflat",
+    "maxflat",
+    "midflat",
+    "centerflat_q25",
+    "centerflat_q50",
+    "centerflat_q75",
+    "highprob_centerflat",
+]
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", default="distilgpt2")
     parser.add_argument("--prompts", required=True, help="JSONL with a 'prompt' field.")
-    parser.add_argument("--methods", nargs="+", choices=["random", "minflat", "maxflat"], default=["random", "minflat"])
+    parser.add_argument("--methods", nargs="+", choices=METHOD_CHOICES, default=["random", "minflat"])
     parser.add_argument("--n-values", nargs="+", type=int, default=[1, 4, 8, 16])
     parser.add_argument("--proposal-temperature", type=float, default=1.0)
     parser.add_argument("--max-new-tokens", type=int, default=100)
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--seeds", nargs="+", type=int, default=[0])
+    parser.add_argument("--repeat-count", type=int, default=None, help="Generate this many seed replicates when --seeds is not provided.")
+    parser.add_argument("--seed-start", type=int, default=0, help="First seed to use when synthesizing a repeat grid.")
     parser.add_argument("--device", default="auto")
     parser.add_argument("--dtype", default="auto")
     parser.add_argument("--output-dir", default="outputs/generations/sweep")
@@ -33,6 +46,13 @@ def main() -> None:
     if args.limit is not None:
         prompts = prompts[: args.limit]
 
+    if args.repeat_count is not None and args.repeat_count <= 0:
+        raise SystemExit("--repeat-count must be positive")
+    if args.seeds == [0] and args.repeat_count is not None:
+        seeds = [args.seed_start + i for i in range(args.repeat_count)]
+    else:
+        seeds = args.seeds
+
     model, tokenizer, device = load_causal_lm(args.model, args.device, args.dtype)
 
     output_dir = Path(args.output_dir)
@@ -42,7 +62,7 @@ def main() -> None:
 
     for method in args.methods:
         for n_trials in args.n_values:
-            for seed in args.seeds:
+            for repeat_index, seed in enumerate(seeds):
                 generations: list[dict] = []
                 token_records: list[dict] = []
 
@@ -70,6 +90,8 @@ def main() -> None:
                             "n_trials": n_trials,
                             "proposal_temperature": args.proposal_temperature,
                             "seed": seed,
+                            "repeat_index": repeat_index,
+                            "repeat_count": len(seeds),
                             "prompt": prompt,
                             "text": text,
                         }
@@ -78,6 +100,8 @@ def main() -> None:
                         record_row = record.to_dict()
                         record_row["prompt_id"] = prompt_id
                         record_row["seed"] = seed
+                        record_row["repeat_index"] = repeat_index
+                        record_row["repeat_count"] = len(seeds)
                         record_row["model"] = args.model
                         token_records.append(record_row)
 

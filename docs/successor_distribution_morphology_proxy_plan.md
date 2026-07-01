@@ -153,6 +153,23 @@ That gives 20 repeated generations per prompt, which is the right unit for compa
 
 The active morphology-stratified probe is separate: it dumps the full candidate pool and also produces regime-stratified samples. It is useful for selecting candidate regimes, but it does not itself synthesize stochastic repeats.
 
+### Repeat-backed generation command
+
+For the actual 20-repeat experiment, use the existing sweep generator with a fixed prompt subset and a seed grid. For example:
+
+```bash
+python scripts/run_sweep_n.py \
+  --model Qwen/Qwen2.5-1.5B-Instruct \
+  --prompts prompts/writingprompts_fixed_100.jsonl \
+  --limit 20 \
+  --methods random minflat maxflat centerflat_q50 centerflat_q75 highprob_centerflat \
+  --n-values 1 4 8 16 \
+  --repeat-count 20 \
+  --seed-start 0
+```
+
+That gives 20 repeat-backed generations per prompt. You can then run the morphology analysis script over the resulting generation directory.
+
 ## Recommended commands
 
 Dry-run:
