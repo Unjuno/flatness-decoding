@@ -206,8 +206,6 @@ def main() -> None:
         ]
         if args.resume:
             gen_cmd.append("--resume")
-        if args.model_cache_dir:
-            gen_cmd.extend(["--model-cache-dir", args.model_cache_dir])
         if args.local_files_only:
             gen_cmd.append("--local-files-only")
 
