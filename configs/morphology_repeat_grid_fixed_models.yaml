@@ -32,6 +32,6 @@ skip_analysis: false
 allow_gemma: false
 confirm_large_run: false
 model_cache_dir: models/hf
-device: auto
+device: cpu
 dtype: auto
 local_files_only: false
