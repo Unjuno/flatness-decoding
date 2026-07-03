@@ -301,8 +301,8 @@ def stable_unique(values: list[str]) -> list[str]:
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Analyze successor distribution morphology proxies.")
-    p.add_argument("--conditions", action="append", default=[], help="Repeatable or comma-separated.")
-    p.add_argument("--methods", action="append", default=[], help="Repeatable or comma-separated.")
+    p.add_argument("--conditions", action="extend", nargs="+", default=[], help="Repeatable or comma-separated.")
+    p.add_argument("--methods", action="extend", nargs="+", default=[], help="Repeatable or comma-separated.")
     p.add_argument("--preset", default=None)
     p.add_argument("--execute", action="store_true")
     p.add_argument("--dry-run", action="store_true", default=True)
