@@ -877,7 +877,7 @@ def build_prompt_text(gen: dict[str, Any], condition: ConditionMeta) -> str:
 def summarize_candidate_metrics(current_logits, candidate_ids, candidate_flatness, tokenizer, prompt_text: str, recent_text: str):
     import torch
 
-    flatness = torch.tensor(candidate_flatness, dtype=torch.float32)
+    flatness = torch.as_tensor(candidate_flatness, dtype=torch.float32).reshape(-1)
     probs = torch.softmax(current_logits.float(), dim=-1)
     cand_probs = probs[candidate_ids]
     cand_logprobs = torch.log_softmax(current_logits.float(), dim=-1)[candidate_ids]
