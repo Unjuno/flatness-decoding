@@ -221,6 +221,8 @@ def main() -> None:
             "scripts/analyze_successor_distribution_morphology.py",
             "--preset",
             args.analysis_preset,
+            "--device",
+            "cpu",
             "--conditions",
             condition,
             "--methods",
