@@ -105,6 +105,20 @@ avoid markup/fragment states when narrative prose is desired
 6. Build a two-axis selector: concentration/tail target plus a peak/content penalty.
 7. Add bootstrap confidence intervals and report zero-coverage shape/model combinations explicitly.
 
+## 既存出力ログの個別突合（追加）
+
+`outputs/generations/*shapes_20/` と `outputs/token_logs/*shapes_20/` を、形状 method・model・prompt_id で突合する個別解析を追加した。各形状について、20 prompt × 3 model の continuation と各120 stepの token log を保存済みログから集計している。再生成は行っていない。
+
+個別成果物は `results/analysis/shape_<shape>_output_analysis.md`、`shape_<shape>_output_rows.csv`、`shape_<shape>_token_rows.csv` として出力される。再現コマンドは次の通り。
+
+```bash
+for shape in low_spread mid_spread high_spread low_concentration mid_concentration high_concentration thin_tail mid_tail heavy_tail small_gap mid_gap large_gap rank_slope_flat rank_slope_mid rank_slope_steep spiky_top smooth_top multi_peak; do
+  PYTHONPATH=src .venv/bin/python scripts/analyze_shape_output_one.py --shape "$shape"
+done
+```
+
+最初の `low_spread` では、同じ形状名でも出力挙動はモデルごとに分岐した。GPT-2 は比較的通常の続き生成、Gemma は反復・縮退、Qwen は非ASCII／形式トークンの混入が目立つ。したがって `low_spread` は単一の意味クラスではなく、モデル内の出力挙動と併記して分類する必要がある。
+
 ## Reproduction
 
 ```bash
@@ -126,3 +140,4 @@ MPLCONFIGDIR=/tmp/flatness-mpl .venv/bin/python scripts/plot_morphology_content_
 - [uncertainty analysis](../results/analysis/morphology_uncertainty_analysis.md)
 - [interpretation and predictions](../results/analysis/interpretation_and_predictions.md)
 - [Qwen top-200 supplementary probe](../results/analysis/morphology_probe_qwen_raw_markup_completion/morphology_stratified_probe_report.md)
+- [low_spread individual output analysis](../results/analysis/shape_low_spread_output_analysis.md)
