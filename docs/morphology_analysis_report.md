@@ -128,6 +128,7 @@ PYTHONPATH=src .venv/bin/python scripts/analyze_morphology_candidate_pool.py
 PYTHONPATH=src .venv/bin/python scripts/analyze_morphology_deep.py
 PYTHONPATH=src .venv/bin/python scripts/analyze_morphology_uncertainty.py
 PYTHONPATH=src .venv/bin/python scripts/analyze_shape_output_summary.py
+PYTHONPATH=src .venv/bin/python scripts/analyze_prompt_framing_outputs.py
 MPLCONFIGDIR=/tmp/flatness-mpl .venv/bin/python scripts/plot_morphology_diagnostics.py
 MPLCONFIGDIR=/tmp/flatness-mpl .venv/bin/python scripts/plot_morphology_content_coverage.py
 ```
@@ -143,3 +144,4 @@ MPLCONFIGDIR=/tmp/flatness-mpl .venv/bin/python scripts/plot_morphology_content_
 - [Qwen top-200 supplementary probe](../results/analysis/morphology_probe_qwen_raw_markup_completion/morphology_stratified_probe_report.md)
 - [low_spread individual output analysis](../results/analysis/shape_low_spread_output_analysis.md)
 - [all-shape output-log summary](../results/analysis/morphology_shape_output_summary.md)
+- [raw/wrapped output comparison](../results/analysis/prompt_framing_output_analysis.md)
