@@ -135,6 +135,7 @@ PYTHONPATH=src .venv/bin/python scripts/classify_output_from_token_features.py
 PYTHONPATH=src .venv/bin/python scripts/evaluate_shape_holdout_classifier.py
 PYTHONPATH=src .venv/bin/python scripts/analyze_shape_paired_effects.py
 PYTHONPATH=src .venv/bin/python scripts/classify_cross_model_shape_effects.py
+PYTHONPATH=src .venv/bin/python scripts/analyze_shape_paired_uncertainty.py
 MPLCONFIGDIR=/tmp/flatness-mpl .venv/bin/python scripts/plot_morphology_diagnostics.py
 MPLCONFIGDIR=/tmp/flatness-mpl .venv/bin/python scripts/plot_morphology_content_coverage.py
 ```
@@ -157,3 +158,4 @@ MPLCONFIGDIR=/tmp/flatness-mpl .venv/bin/python scripts/plot_morphology_content_
 - [unseen-shape holdout classifier](../results/analysis/morphology_shape_holdout_classifier.md)
 - [paired shape effects](../results/analysis/morphology_shape_paired_effects.md)
 - [cross-model shape effect classes](../results/analysis/morphology_cross_model_effect_classes.md)
+- [paired effect uncertainty](../results/analysis/morphology_shape_paired_uncertainty.md)
