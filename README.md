@@ -4,6 +4,10 @@ Experimental evaluation of **successor logit dispersion** as a decoding-time dia
 
 This repository is a private research workspace for evaluating candidate-induced successor logit dispersion as a decoding-time signal. The goal is not to claim universal improvement, but to characterize how selecting tokens by successor-state distribution shape changes generation trajectories, repetition, diversity, likelihood-related metrics, failure modes, and compute cost.
 
+## Morphology analysis
+
+The consolidated analysis of 18 successor-logit shape labels across GPT-2, Gemma raw, and Qwen raw is documented in [`docs/morphology_analysis_report.md`](docs/morphology_analysis_report.md). It includes distribution statistics, candidate-token content analysis, model-local comparisons, bootstrap uncertainty, coverage diagnostics, and figures under `results/figures/morphology/`.
+
 ## WritingPrompts experiment status
 
 The DistilGPT-2 and GPT-2 WritingPrompts experiments are completed.

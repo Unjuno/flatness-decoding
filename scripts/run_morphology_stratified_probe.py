@@ -823,7 +823,7 @@ def probe_prompt(model, tokenizer, device, meta: ProbeConditionMeta, prompt_row:
             input_ids,
             candidate_id,
             prompt,
-            prompt,
+            "",
             device,
             current_logits=current_logits,
         )
