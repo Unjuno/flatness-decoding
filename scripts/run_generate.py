@@ -13,7 +13,38 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", default="distilgpt2")
     parser.add_argument("--prompt", required=True)
-    parser.add_argument("--method", choices=["minflat", "maxflat", "random"], default="minflat")
+    parser.add_argument(
+        "--method",
+        choices=[
+            "minflat",
+            "maxflat",
+            "random",
+            "midflat",
+            "centerflat_q25",
+            "centerflat_q50",
+            "centerflat_q75",
+            "highprob_centerflat",
+            "low_spread",
+            "mid_spread",
+            "high_spread",
+            "low_concentration",
+            "mid_concentration",
+            "high_concentration",
+            "thin_tail",
+            "mid_tail",
+            "heavy_tail",
+            "small_gap",
+            "mid_gap",
+            "large_gap",
+            "rank_slope_flat",
+            "rank_slope_mid",
+            "rank_slope_steep",
+            "spiky_top",
+            "smooth_top",
+            "multi_peak",
+        ],
+        default="minflat",
+    )
     parser.add_argument("--n-trials", type=int, default=8)
     parser.add_argument("--proposal-temperature", type=float, default=1.0)
     parser.add_argument("--max-new-tokens", type=int, default=100)

@@ -7,6 +7,10 @@ models:
 
 optional_models:
   # Uncomment or pass via --models when compute/storage allows.
-  # - gpt2-medium
+  - gpt2-medium
+  - Qwen/Qwen2.5-0.5B
+  - Qwen/Qwen2.5-1.5B-Instruct
+  - google/gemma-2-2b
+  - google/gemma-3-4b-it
   # - microsoft/DialoGPT-small
   # - microsoft/DialoGPT-medium

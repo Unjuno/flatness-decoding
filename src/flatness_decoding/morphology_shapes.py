@@ -178,5 +178,4 @@ def explain_shape(stats: ShapeStats) -> dict[str, Any]:
         "gap": "large" if stats.gap_1_2 >= 1.5 else "small" if stats.gap_1_2 <= 0.5 else "mid",
         "rank_slope": "steep" if stats.rank_prob_slope_top50 <= -0.20 else "flat" if stats.rank_prob_slope_top50 >= -0.05 else "mid",
         "fragment_proxy": "high" if stats.hhi_top50 >= 0.08 else "mid" if stats.hhi_top50 >= 0.04 else "low",
-        "peak_structure": "spiky" if stats.top1_prob >= 0.60 else "smooth" if stats.top1_prob <= 0.20 else "multi_or_mid",
     }

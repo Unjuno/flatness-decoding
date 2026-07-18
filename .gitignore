@@ -4,9 +4,15 @@ __pycache__/
 venv/
 .env
 .DS_Store
+
+# Local execution logs, model caches, and generated inventory data
+/hf-cache/
+/logs/
+/outputs/multi_config_logs/
 .pytest_cache/
 .ruff_cache/
 .ipynb_checkpoints/
+*.egg-info/
 
 # Heavy experiment artifacts
 /data/raw/
@@ -36,5 +42,14 @@ venv/
 !/results/README.md
 !/results/summary/
 !/results/figures/
+
+# Raw run directories under results are local artifacts; keep only curated tables.
+/results/*/
+!/results/summary/
+!/results/summary/**
+!/results/figures/
+!/results/figures/**
+!/results/analysis/
+!/results/analysis/**
 artifacts/*.tar.gz
 artifacts/*.sha256

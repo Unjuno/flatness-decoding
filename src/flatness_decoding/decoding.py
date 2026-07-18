@@ -55,6 +55,11 @@ class SelectionInfo:
     allowed_candidate_indices: list[int]
     selection_fallback: bool
 
+    def __iter__(self):
+        """Preserve the historical ``index, token = choose_candidate(...)`` API."""
+        yield self.chosen_index
+        yield self.chosen_id
+
 
 @dataclass
 class StepRecord:

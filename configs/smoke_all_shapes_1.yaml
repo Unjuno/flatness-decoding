@@ -1,0 +1,43 @@
+experiment_name: smoke_all_shapes_1
+model_name: distilgpt2
+model_cache_dir: models/hf
+device: auto
+dtype: auto
+seeds: [0]
+
+generation:
+  max_new_tokens: 20
+
+prompts:
+  path: prompts/writingprompts_fixed_100.jsonl
+  limit: 2
+
+baselines:
+  methods: [greedy]
+  temperature: 1.2
+  top_p: 0.9
+  top_k: 50
+  num_beams: 4
+
+n_trial_methods:
+  methods: [random, minflat]
+  n_values: [1, 4]
+  proposal_temperature: 1.0
+  use_kv_cache_lookahead: false
+  candidate_eval_batch_size: 1
+
+runtime:
+  inference_mode: false
+  resume:
+    skip_complete: true
+  cleanup:
+    device_cache_after_prompt: false
+    device_cache_after_group: true
+    python_gc_after_group: false
+
+output:
+  generations_dir: outputs/generations/smoke_all_shapes_1
+  token_log_dir: outputs/token_logs/smoke_all_shapes_1
+  summary_csv: results/summary/smoke_all_shapes_1_metrics.csv
+  table_csv: results/summary/smoke_all_shapes_1_table.csv
+  figures_dir: results/figures/smoke_all_shapes_1

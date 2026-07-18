@@ -1,0 +1,43 @@
+experiment_name: comparison_qwen25_05b_micro
+model_name: Qwen/Qwen2.5-0.5B
+model_cache_dir: models/hf
+device: auto
+dtype: auto
+seeds: [0]
+
+generation:
+  max_new_tokens: 60
+
+prompts:
+  path: prompts/main_prompts.jsonl
+  limit: 10
+
+baselines:
+  methods: [sampling, temperature, top_p]
+  temperature: 1.2
+  top_p: 0.9
+  top_k: 50
+  num_beams: 4
+
+n_trial_methods:
+  methods: [random, minflat, maxflat]
+  n_values: [1, 4, 16]
+  proposal_temperature: 1.0
+  use_kv_cache_lookahead: false
+  candidate_eval_batch_size: 1
+
+runtime:
+  inference_mode: false
+  resume:
+    skip_complete: true
+  cleanup:
+    device_cache_after_prompt: true
+    device_cache_after_group: true
+    python_gc_after_group: true
+
+output:
+  generations_dir: outputs/generations/comparison_qwen25_05b_micro
+  token_log_dir: outputs/token_logs/comparison_qwen25_05b_micro
+  summary_csv: results/summary/comparison_qwen25_05b_micro_metrics.csv
+  table_csv: results/summary/comparison_qwen25_05b_micro_table.csv
+  figures_dir: results/figures/comparison_qwen25_05b_micro

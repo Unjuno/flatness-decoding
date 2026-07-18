@@ -1,0 +1,8 @@
+method,broadness_index,peakiness_index,fragment_tail_index
+random,-0.143,-1.732,0.077
+minflat,12.351,-7.674,5.866
+maxflat,0.095,-1.872,-1.333
+centerflat_q25,-2.043,1.162,1.29
+centerflat_q50,-3.46,3.038,-0.867
+centerflat_q75,0.697,-2.215,-0.923
+highprob_centerflat,-7.497,9.294,-4.11
