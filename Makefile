@@ -1,4 +1,4 @@
-.PHONY: install install-eval download-models check smoke plan-parallel estimate-tiny estimate-smoke estimate-distilgpt2-main estimate-main clean-tiny clean-smoke clean-distilgpt2-main clean-main comparison-tiny comparison-tiny-parallel validate-tiny comparison-smoke comparison-smoke-parallel validate-smoke build-prompts build-writingprompts build-wikitext-pilot comparison-main comparison-main-parallel validate-main comparison-distilgpt2-main comparison-distilgpt2-main-parallel validate-distilgpt2-main eval-smoke table-smoke extended-smoke ppl-smoke trends-smoke metric-suite-smoke merge-smoke manifest-smoke analyze-smoke token-analyze-smoke plot-smoke postprocess-smoke extended-distilgpt2-main ppl-distilgpt2-main trends-distilgpt2-main metric-suite-distilgpt2-main merge-distilgpt2-main manifest-distilgpt2-main token-analyze-distilgpt2-main postprocess-distilgpt2-main extended-main ppl-main trends-main metric-suite-main merge-main manifest-main token-analyze-main postprocess-main postprocess-gpt2-lite postprocess-gpt2-medium-micro postprocess-qwen25-05b-micro writingprompts-auto writingprompts-auto-dry paper-check paper-check-final export-smoke-table test dvc-init-local
+.PHONY: install install-eval download-models check smoke plan-parallel estimate-tiny estimate-smoke estimate-distilgpt2-main estimate-main clean-tiny clean-smoke clean-distilgpt2-main clean-main comparison-tiny comparison-tiny-parallel validate-tiny comparison-smoke comparison-smoke-parallel validate-smoke build-prompts build-writingprompts build-wikitext-pilot comparison-main comparison-main-parallel validate-main comparison-distilgpt2-main comparison-distilgpt2-main-parallel validate-distilgpt2-main comparison-main-shapes comparison-main-shapes-parallel validate-main-shapes comparison-distilgpt2-main-shapes comparison-distilgpt2-main-shapes-parallel validate-distilgpt2-main-shapes comparison-gpt2-medium-shapes comparison-gpt2-medium-shapes-parallel validate-gpt2-medium-shapes comparison-qwen25-05b-shapes comparison-qwen25-05b-shapes-parallel validate-qwen25-05b-shapes comparison-qwen25-1-5b-shapes comparison-qwen25-1-5b-shapes-parallel validate-qwen25-1-5b-shapes comparison-gemma2-2b-shapes comparison-gemma2-2b-shapes-parallel validate-gemma2-2b-shapes comparison-gemma3-4b-shapes comparison-gemma3-4b-shapes-parallel validate-gemma3-4b-shapes comparison-gpt2-shapes-20 comparison-gpt2-shapes-20-parallel validate-gpt2-shapes-20 comparison-qwen25-1-5b-shapes-20 comparison-qwen25-1-5b-shapes-20-parallel validate-qwen25-1-5b-shapes-20 comparison-gemma3-4b-shapes-20 comparison-gemma3-4b-shapes-20-parallel validate-gemma3-4b-shapes-20 comparison-shapes comparison-shapes-parallel validate-shapes comparison-all-shapes comparison-all-shapes-dry eval-smoke table-smoke extended-smoke ppl-smoke trends-smoke metric-suite-smoke merge-smoke manifest-smoke analyze-smoke token-analyze-smoke plot-smoke postprocess-smoke extended-distilgpt2-main ppl-distilgpt2-main trends-distilgpt2-main metric-suite-distilgpt2-main merge-distilgpt2-main manifest-distilgpt2-main token-analyze-distilgpt2-main postprocess-distilgpt2-main extended-main ppl-main trends-main metric-suite-main merge-main manifest-main token-analyze-main postprocess-main postprocess-gpt2-lite postprocess-gpt2-medium-micro postprocess-qwen25-05b-micro writingprompts-auto writingprompts-auto-dry paper-check paper-check-final export-smoke-table test dvc-init-local
 
 PYTHONPATH := src
 VENV_PYTHON := .venv/bin/python
@@ -116,10 +116,23 @@ comparison-main-parallel:
 	PYTHONPATH=$(PYTHONPATH) python scripts/run_experiment_parallel.py --config configs/comparison_main_template.yaml --num-shards auto --workers auto
 	$(MAKE) postprocess-main
 
+comparison-main-shapes:
+	PYTHONPATH=$(PYTHONPATH) python scripts/run_pipeline.py --config configs/comparison_gpt2_shapes.yaml
+
+comparison-main-shapes-parallel:
+	PYTHONPATH=$(PYTHONPATH) python scripts/run_experiment_parallel.py --config configs/comparison_gpt2_shapes.yaml --num-shards auto --workers auto
+	$(MAKE) postprocess-main
+
 validate-main:
 	PYTHONPATH=$(PYTHONPATH) python scripts/validate_generation_outputs.py \
 		--input-dir outputs/generations/comparison_gpt2_writingprompts \
 		--token-log-dir outputs/token_logs/comparison_gpt2_writingprompts \
+		--fail
+
+validate-main-shapes:
+	PYTHONPATH=$(PYTHONPATH) python scripts/validate_generation_outputs.py \
+		--input-dir outputs/generations/comparison_gpt2_shapes \
+		--token-log-dir outputs/token_logs/comparison_gpt2_shapes \
 		--fail
 
 comparison-distilgpt2-main:
@@ -129,11 +142,176 @@ comparison-distilgpt2-main-parallel:
 	PYTHONPATH=$(PYTHONPATH) python scripts/run_experiment_parallel.py --config configs/comparison_distilgpt2_main.yaml --num-shards auto --workers auto
 	$(MAKE) postprocess-distilgpt2-main
 
+comparison-distilgpt2-main-shapes:
+	PYTHONPATH=$(PYTHONPATH) python scripts/run_pipeline.py --config configs/comparison_distilgpt2_shapes.yaml
+
+comparison-distilgpt2-main-shapes-parallel:
+	PYTHONPATH=$(PYTHONPATH) python scripts/run_experiment_parallel.py --config configs/comparison_distilgpt2_shapes.yaml --num-shards auto --workers auto
+	$(MAKE) postprocess-distilgpt2-main
+
 validate-distilgpt2-main:
 	PYTHONPATH=$(PYTHONPATH) python scripts/validate_generation_outputs.py \
 		--input-dir outputs/generations/comparison_distilgpt2_writingprompts \
 		--token-log-dir outputs/token_logs/comparison_distilgpt2_writingprompts \
 		--fail
+
+validate-distilgpt2-main-shapes:
+	PYTHONPATH=$(PYTHONPATH) python scripts/validate_generation_outputs.py \
+		--input-dir outputs/generations/comparison_distilgpt2_shapes \
+		--token-log-dir outputs/token_logs/comparison_distilgpt2_shapes \
+		--fail
+
+comparison-gpt2-medium-shapes:
+	PYTHONPATH=$(PYTHONPATH) python scripts/run_pipeline.py --config configs/comparison_gpt2_medium_shapes.yaml
+
+comparison-gpt2-medium-shapes-parallel:
+	PYTHONPATH=$(PYTHONPATH) python scripts/run_experiment_parallel.py --config configs/comparison_gpt2_medium_shapes.yaml --num-shards auto --workers auto
+
+validate-gpt2-medium-shapes:
+	PYTHONPATH=$(PYTHONPATH) python scripts/validate_generation_outputs.py \
+		--input-dir outputs/generations/comparison_gpt2_medium_shapes \
+		--token-log-dir outputs/token_logs/comparison_gpt2_medium_shapes \
+		--fail
+
+comparison-qwen25-05b-shapes:
+	PYTHONPATH=$(PYTHONPATH) python scripts/run_pipeline.py --config configs/comparison_qwen25_05b_shapes.yaml
+
+comparison-qwen25-05b-shapes-parallel:
+	PYTHONPATH=$(PYTHONPATH) python scripts/run_experiment_parallel.py --config configs/comparison_qwen25_05b_shapes.yaml --num-shards auto --workers auto
+
+validate-qwen25-05b-shapes:
+	PYTHONPATH=$(PYTHONPATH) python scripts/validate_generation_outputs.py \
+		--input-dir outputs/generations/comparison_qwen25_05b_shapes \
+		--token-log-dir outputs/token_logs/comparison_qwen25_05b_shapes \
+		--fail
+
+comparison-qwen25-1-5b-shapes:
+	PYTHONPATH=$(PYTHONPATH) python scripts/run_pipeline.py --config configs/comparison_qwen25_1_5b_shapes.yaml
+
+comparison-qwen25-1-5b-shapes-parallel:
+	PYTHONPATH=$(PYTHONPATH) python scripts/run_experiment_parallel.py --config configs/comparison_qwen25_1_5b_shapes.yaml --num-shards auto --workers auto
+
+validate-qwen25-1-5b-shapes:
+	PYTHONPATH=$(PYTHONPATH) python scripts/validate_generation_outputs.py \
+		--input-dir outputs/generations/comparison_qwen25_1_5b_shapes \
+		--token-log-dir outputs/token_logs/comparison_qwen25_1_5b_shapes \
+		--fail
+
+comparison-gemma2-2b-shapes:
+	PYTHONPATH=$(PYTHONPATH) python scripts/run_pipeline.py --config configs/comparison_gemma2_2b_shapes.yaml
+
+comparison-gemma2-2b-shapes-parallel:
+	PYTHONPATH=$(PYTHONPATH) python scripts/run_experiment_parallel.py --config configs/comparison_gemma2_2b_shapes.yaml --num-shards auto --workers auto
+
+validate-gemma2-2b-shapes:
+	PYTHONPATH=$(PYTHONPATH) python scripts/validate_generation_outputs.py \
+		--input-dir outputs/generations/comparison_gemma2_2b_shapes \
+		--token-log-dir outputs/token_logs/comparison_gemma2_2b_shapes \
+		--fail
+
+comparison-gemma3-4b-shapes:
+	PYTHONPATH=$(PYTHONPATH) python scripts/run_pipeline.py --config configs/comparison_gemma3_4b_shapes.yaml
+
+comparison-gemma3-4b-shapes-parallel:
+	PYTHONPATH=$(PYTHONPATH) python scripts/run_experiment_parallel.py --config configs/comparison_gemma3_4b_shapes.yaml --num-shards auto --workers auto
+
+validate-gemma3-4b-shapes:
+	PYTHONPATH=$(PYTHONPATH) python scripts/validate_generation_outputs.py \
+		--input-dir outputs/generations/comparison_gemma3_4b_shapes \
+		--token-log-dir outputs/token_logs/comparison_gemma3_4b_shapes \
+		--fail
+
+comparison-gpt2-shapes-20:
+	PYTHONPATH=$(PYTHONPATH) python scripts/run_pipeline.py --config configs/comparison_gpt2_shapes_20.yaml
+
+comparison-gpt2-shapes-20-parallel:
+	PYTHONPATH=$(PYTHONPATH) python scripts/run_experiment_parallel.py --config configs/comparison_gpt2_shapes_20.yaml --num-shards auto --workers auto
+
+validate-gpt2-shapes-20:
+	PYTHONPATH=$(PYTHONPATH) python scripts/validate_generation_outputs.py \
+		--input-dir outputs/generations/comparison_gpt2_shapes_20 \
+		--token-log-dir outputs/token_logs/comparison_gpt2_shapes_20 \
+		--fail
+
+comparison-qwen25-1-5b-shapes-20:
+	PYTHONPATH=$(PYTHONPATH) python scripts/run_pipeline.py --config configs/comparison_qwen25_1_5b_shapes_20.yaml
+
+comparison-qwen25-1-5b-shapes-20-parallel:
+	PYTHONPATH=$(PYTHONPATH) python scripts/run_experiment_parallel.py --config configs/comparison_qwen25_1_5b_shapes_20.yaml --num-shards auto --workers auto
+
+validate-qwen25-1-5b-shapes-20:
+	PYTHONPATH=$(PYTHONPATH) python scripts/validate_generation_outputs.py \
+		--input-dir outputs/generations/comparison_qwen25_1_5b_shapes_20 \
+		--token-log-dir outputs/token_logs/comparison_qwen25_1_5b_shapes_20 \
+		--fail
+
+comparison-gemma3-4b-shapes-20:
+	PYTHONPATH=$(PYTHONPATH) python scripts/run_pipeline.py --config configs/comparison_gemma3_4b_shapes_20.yaml
+
+comparison-gemma3-4b-shapes-20-parallel:
+	PYTHONPATH=$(PYTHONPATH) python scripts/run_experiment_parallel.py --config configs/comparison_gemma3_4b_shapes_20.yaml --num-shards auto --workers auto
+
+validate-gemma3-4b-shapes-20:
+	PYTHONPATH=$(PYTHONPATH) python scripts/validate_generation_outputs.py \
+		--input-dir outputs/generations/comparison_gemma3_4b_shapes_20 \
+		--token-log-dir outputs/token_logs/comparison_gemma3_4b_shapes_20 \
+		--fail
+
+comparison-three-shapes-20:
+	$(MAKE) comparison-gpt2-shapes-20-parallel
+	$(MAKE) comparison-qwen25-1-5b-shapes-20-parallel
+	$(MAKE) comparison-gemma3-4b-shapes-20-parallel
+
+validate-three-shapes-20:
+	$(MAKE) validate-gpt2-shapes-20
+	$(MAKE) validate-qwen25-1-5b-shapes-20
+	$(MAKE) validate-gemma3-4b-shapes-20
+
+comparison-shapes:
+	$(MAKE) comparison-distilgpt2-main-shapes
+	$(MAKE) comparison-main-shapes
+	$(MAKE) comparison-gpt2-medium-shapes
+	$(MAKE) comparison-qwen25-05b-shapes
+	$(MAKE) comparison-qwen25-1-5b-shapes
+	$(MAKE) comparison-gemma2-2b-shapes
+	$(MAKE) comparison-gemma3-4b-shapes
+
+comparison-shapes-parallel:
+	$(MAKE) comparison-distilgpt2-main-shapes-parallel
+	$(MAKE) comparison-main-shapes-parallel
+	$(MAKE) comparison-gpt2-medium-shapes-parallel
+	$(MAKE) comparison-qwen25-05b-shapes-parallel
+	$(MAKE) comparison-qwen25-1-5b-shapes-parallel
+	$(MAKE) comparison-gemma2-2b-shapes-parallel
+	$(MAKE) comparison-gemma3-4b-shapes-parallel
+
+validate-shapes:
+	$(MAKE) validate-distilgpt2-main-shapes
+	$(MAKE) validate-main-shapes
+	$(MAKE) validate-gpt2-medium-shapes
+	$(MAKE) validate-qwen25-05b-shapes
+	$(MAKE) validate-qwen25-1-5b-shapes
+	$(MAKE) validate-gemma2-2b-shapes
+	$(MAKE) validate-gemma3-4b-shapes
+
+ALL_SHAPES_CONFIGS := \
+	configs/comparison_distilgpt2_shapes.yaml \
+	configs/comparison_gpt2_shapes.yaml \
+	configs/comparison_gpt2_medium_shapes.yaml \
+	configs/comparison_qwen25_05b_shapes.yaml \
+	configs/comparison_qwen25_1_5b_shapes.yaml \
+	configs/comparison_gemma2_2b_shapes.yaml \
+	configs/comparison_gemma3_4b_shapes.yaml
+
+comparison-all-shapes:
+	PYTHONPATH=$(PYTHONPATH) $(VENV_PYTHON) scripts/run_multi_config_parallel.py \
+		--configs $(ALL_SHAPES_CONFIGS) \
+		--resume
+
+comparison-all-shapes-dry:
+	PYTHONPATH=$(PYTHONPATH) $(VENV_PYTHON) scripts/run_multi_config_parallel.py \
+		--configs $(ALL_SHAPES_CONFIGS) \
+		--dry-run
 
 eval-smoke:
 	PYTHONPATH=$(PYTHONPATH) python scripts/run_evaluate.py \

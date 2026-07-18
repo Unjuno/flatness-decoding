@@ -6,6 +6,15 @@ from typing import Any, Literal
 import torch
 
 from .flatness import flatness_std_from_logits, selection_gain
+from .morphology_shapes import (
+    detect_concentration,
+    detect_gap,
+    detect_peak_structure,
+    detect_rank_shape,
+    detect_spread,
+    detect_tail,
+    morphology_stats_extended,
+)
 from .sampling import sample_candidates_from_logits
 
 DecodeMode = Literal[
@@ -17,6 +26,24 @@ DecodeMode = Literal[
     "centerflat_q50",
     "centerflat_q75",
     "highprob_centerflat",
+    "low_spread",
+    "mid_spread",
+    "high_spread",
+    "low_concentration",
+    "mid_concentration",
+    "high_concentration",
+    "thin_tail",
+    "mid_tail",
+    "heavy_tail",
+    "small_gap",
+    "mid_gap",
+    "large_gap",
+    "rank_slope_flat",
+    "rank_slope_mid",
+    "rank_slope_steep",
+    "spiky_top",
+    "smooth_top",
+    "multi_peak",
 ]
 
 
@@ -227,6 +254,25 @@ def selector_quantile(mode: DecodeMode) -> float | None:
     return None
 
 
+def _shape_label_set(stats) -> set[str]:
+    labels: set[str] = set()
+    for fn in (detect_spread, detect_concentration, detect_tail, detect_gap, detect_rank_shape, detect_peak_structure):
+        labels.update(k for k, v in fn(stats).items() if v)
+    return labels
+
+
+def _shape_target_label(mode: DecodeMode) -> str | None:
+    shape_modes = {
+        "low_spread", "mid_spread", "high_spread",
+        "low_concentration", "mid_concentration", "high_concentration",
+        "thin_tail", "mid_tail", "heavy_tail",
+        "small_gap", "mid_gap", "large_gap",
+        "rank_slope_flat", "rank_slope_mid", "rank_slope_steep",
+        "spiky_top", "smooth_top", "multi_peak",
+    }
+    return mode if mode in shape_modes else None
+
+
 def choose_quantile_index(flatness_cpu: torch.Tensor, candidate_indices: torch.Tensor, q: float) -> int:
     subset = flatness_cpu[candidate_indices]
     if subset.numel() == 1:
@@ -305,6 +351,11 @@ def choose_candidate(
             highprob_rank_limit,
         )
         idx = choose_quantile_index(flatness_cpu, torch.tensor(allowed_indices, dtype=torch.long), 0.5)
+    elif _shape_target_label(mode) is not None:
+        # Shape modes are selected by candidate-induced successor logits.
+        # The caller passes flatness_values as a side channel if desired, but
+        # the actual shape selection is handled higher up in generate_flatness_controlled.
+        raise ValueError("shape-based modes must be resolved by generate_flatness_controlled")
     else:
         raise ValueError(f"Unknown mode: {mode}")
 
@@ -345,10 +396,9 @@ def generate_flatness_controlled(
 ) -> tuple[str, list[StepRecord]]:
     """Generate text with Random-N and flatness-controlled decoding.
 
-    `method="minflat"` is Flatness-N. Official runs default to exact full-prefix
-    candidate evaluation with micro-batching. Cached candidate lookahead remains
-    optional and disabled by default because it did not pass equivalence tests in
-    the current GPT-2/Transformers stack.
+    `method="minflat"` is Flatness-N. Shape-based modes select by candidate
+    successor distribution morphology instead of successor flatness. Official
+    runs default to exact full-prefix candidate evaluation with micro-batching.
     """
     if seed is not None:
         torch.manual_seed(seed)
@@ -389,15 +439,95 @@ def generate_flatness_controlled(
             past_key_values=past_key_values if use_kv_cache_lookahead else None,
         )
 
-        selection = choose_candidate(
-            candidate_ids=candidate_ids,
-            flatness_values=flatness_values,
-            mode=method,
-            candidate_current_logprobs=candidate_logprobs,
-            candidate_current_ranks=candidate_ranks,
-            highprob_logprob_margin=highprob_logprob_margin,
-            highprob_rank_limit=highprob_rank_limit,
-        )
+        # Shape-based selection evaluates each candidate's successor logits directly.
+        if _shape_target_label(method) is not None:
+            candidate_shape_stats = []
+            for cand_id in candidate_ids.tolist():
+                successor_ids = torch.cat([input_ids, torch.tensor([[int(cand_id)]], device=device)], dim=1)
+                successor_logits = model(input_ids=successor_ids).logits[0, -1, :]
+                candidate_shape_stats.append(morphology_stats_extended(successor_logits))
+            target = _shape_target_label(method)
+            shape_scores = []
+            for stats in candidate_shape_stats:
+                labels = _shape_label_set(stats)
+                shape_scores.append(1.0 if target in labels else 0.0)
+            if any(shape_scores):
+                idx = int(torch.tensor(shape_scores).argmax().item())
+            else:
+                # Fallback: choose the candidate closest to the target's primary metric.
+                if method == "low_spread":
+                    key = lambda s: s.logit_std
+                    idx = int(torch.tensor([key(s) for s in candidate_shape_stats]).argmin().item())
+                elif method == "mid_spread":
+                    key = lambda s: abs(s.logit_std - 3.0)
+                    idx = int(torch.tensor([key(s) for s in candidate_shape_stats]).argmin().item())
+                elif method == "high_spread":
+                    key = lambda s: -s.logit_std
+                    idx = int(torch.tensor([key(s) for s in candidate_shape_stats]).argmin().item())
+                elif method == "low_concentration":
+                    key = lambda s: s.top1_prob
+                    idx = int(torch.tensor([key(s) for s in candidate_shape_stats]).argmin().item())
+                elif method == "mid_concentration":
+                    key = lambda s: abs(s.top1_prob - 0.25)
+                    idx = int(torch.tensor([key(s) for s in candidate_shape_stats]).argmin().item())
+                elif method == "high_concentration":
+                    key = lambda s: -s.top1_prob
+                    idx = int(torch.tensor([key(s) for s in candidate_shape_stats]).argmin().item())
+                elif method == "thin_tail":
+                    key = lambda s: s.tail_mass_after_top50
+                    idx = int(torch.tensor([key(s) for s in candidate_shape_stats]).argmin().item())
+                elif method == "mid_tail":
+                    key = lambda s: abs(s.tail_mass_after_top50 - 0.15)
+                    idx = int(torch.tensor([key(s) for s in candidate_shape_stats]).argmin().item())
+                elif method == "heavy_tail":
+                    key = lambda s: -s.tail_mass_after_top50
+                    idx = int(torch.tensor([key(s) for s in candidate_shape_stats]).argmin().item())
+                elif method == "small_gap":
+                    key = lambda s: s.gap_1_2
+                    idx = int(torch.tensor([key(s) for s in candidate_shape_stats]).argmin().item())
+                elif method == "mid_gap":
+                    key = lambda s: abs(s.gap_1_2 - 0.75)
+                    idx = int(torch.tensor([key(s) for s in candidate_shape_stats]).argmin().item())
+                elif method == "large_gap":
+                    key = lambda s: -s.gap_1_2
+                    idx = int(torch.tensor([key(s) for s in candidate_shape_stats]).argmin().item())
+                elif method == "rank_slope_flat":
+                    key = lambda s: -s.rank_prob_slope_top50
+                    idx = int(torch.tensor([key(s) for s in candidate_shape_stats]).argmin().item())
+                elif method == "rank_slope_mid":
+                    key = lambda s: abs(s.rank_prob_slope_top50 + 0.1)
+                    idx = int(torch.tensor([key(s) for s in candidate_shape_stats]).argmin().item())
+                elif method == "rank_slope_steep":
+                    key = lambda s: s.rank_prob_slope_top50
+                    idx = int(torch.tensor([key(s) for s in candidate_shape_stats]).argmin().item())
+                elif method == "spiky_top":
+                    key = lambda s: -s.top1_prob
+                    idx = int(torch.tensor([key(s) for s in candidate_shape_stats]).argmin().item())
+                elif method == "smooth_top":
+                    key = lambda s: s.top1_prob
+                    idx = int(torch.tensor([key(s) for s in candidate_shape_stats]).argmin().item())
+                elif method == "multi_peak":
+                    key = lambda s: -s.large_gap_count_top50
+                    idx = int(torch.tensor([key(s) for s in candidate_shape_stats]).argmin().item())
+                else:
+                    raise ValueError(f"Unknown shape mode: {method}")
+            selection = SelectionInfo(
+                chosen_index=idx,
+                chosen_id=int(candidate_ids[idx].item()),
+                selector_target_quantile=None,
+                allowed_candidate_indices=list(range(int(candidate_ids.shape[0]))),
+                selection_fallback=not bool(shape_scores and any(shape_scores)),
+            )
+        else:
+            selection = choose_candidate(
+                candidate_ids=candidate_ids,
+                flatness_values=flatness_values,
+                mode=method,
+                candidate_current_logprobs=candidate_logprobs,
+                candidate_current_ranks=candidate_ranks,
+                highprob_logprob_margin=highprob_logprob_margin,
+                highprob_rank_limit=highprob_rank_limit,
+            )
         chosen_index = selection.chosen_index
         chosen_id = selection.chosen_id
 

@@ -12,7 +12,7 @@ from tqdm import tqdm
 from flatness_decoding.baselines import generate_baseline
 from flatness_decoding.decoding import generate_flatness_controlled
 from flatness_decoding.implementation import IMPLEMENTATION_PROFILE, USE_KV_CACHE_LOOKAHEAD
-from flatness_decoding.io_utils import read_jsonl, write_jsonl
+from flatness_decoding.io_utils import append_jsonl, read_jsonl
 from flatness_decoding.memory import cleanup_config, cleanup_device_cache
 from flatness_decoding.metrics import continuation_from_text
 from flatness_decoding.model_io import load_causal_lm
@@ -135,7 +135,6 @@ def run_baseline_grid(cfg: dict, model, tokenizer, device, prompts: list[dict], 
                 print(f"skip complete baseline group: {output_path}")
                 continue
 
-            rows = []
             for local_idx, row in enumerate(tqdm(prompts, desc=f"baseline {method} seed={seed}{suffix}")):
                 prompt_id = row.get("id", local_idx)
                 original_prompt_index = row.get("original_prompt_index", local_idx)
@@ -157,7 +156,7 @@ def run_baseline_grid(cfg: dict, model, tokenizer, device, prompts: list[dict], 
                         seed=actual_seed,
                     )
                 elapsed = time.perf_counter() - started
-                rows.append({
+                append_jsonl(output_path, {
                     "implementation_profile": IMPLEMENTATION_PROFILE,
                     "experiment_name": exp_name,
                     "prompt_id": prompt_id,
@@ -194,7 +193,6 @@ def run_baseline_grid(cfg: dict, model, tokenizer, device, prompts: list[dict], 
                 if cleanup_cfg["device_cache_after_prompt"]:
                     cleanup_device_cache(device)
 
-            write_jsonl(output_path, rows)
             if cleanup_cfg["device_cache_after_group"]:
                 cleanup_device_cache(device, collect_python=cleanup_cfg["python_gc_after_group"])
 
@@ -246,8 +244,6 @@ def run_n_trial_grid(cfg: dict, model, tokenizer, device, prompts: list[dict], n
                     print(f"skip complete n-trial group: {output_path}")
                     continue
 
-                rows = []
-                token_rows = []
                 for local_idx, row in enumerate(tqdm(prompts, desc=f"n-trial {method} N={n_trials} seed={seed}{suffix}")):
                     prompt_id = row.get("id", local_idx)
                     original_prompt_index = row.get("original_prompt_index", local_idx)
@@ -296,7 +292,7 @@ def run_n_trial_grid(cfg: dict, model, tokenizer, device, prompts: list[dict], n
                         "seed": seed,
                         "actual_seed": actual_seed,
                     }
-                    rows.append({
+                    append_jsonl(output_path, {
                         **common,
                         "method_family": "n_trial",
                         "baseline_temperature": None,
@@ -312,12 +308,9 @@ def run_n_trial_grid(cfg: dict, model, tokenizer, device, prompts: list[dict], n
                         "tokens_per_second": num_output_tokens / elapsed if elapsed > 0 else None,
                     })
                     for record in records:
-                        token_rows.append({**record.to_dict(), **common})
+                        append_jsonl(token_log_path, {**record.to_dict(), **common})
                     if cleanup_cfg["device_cache_after_prompt"]:
                         cleanup_device_cache(device)
-
-                write_jsonl(output_path, rows)
-                write_jsonl(token_log_path, token_rows)
                 if cleanup_cfg["device_cache_after_group"]:
                     cleanup_device_cache(device, collect_python=cleanup_cfg["python_gc_after_group"])
 

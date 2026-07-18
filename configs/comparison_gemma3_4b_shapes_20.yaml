@@ -1,0 +1,71 @@
+experiment_name: comparison_gemma3_4b_shapes_20
+model_name: google/gemma-3-4b-it
+model_cache_dir: models/hf
+device: auto
+dtype: auto
+seeds: [1]
+
+generation:
+  max_new_tokens: 120
+
+prompts:
+  path: prompts/writingprompts_fixed_100.jsonl
+  limit: 20
+
+baselines:
+  methods: [greedy, beam, sampling, temperature, top_p, top_k]
+  temperature: 1.2
+  top_p: 0.9
+  top_k: 50
+  num_beams: 4
+
+n_trial_methods:
+  methods:
+    - random
+    - minflat
+    - maxflat
+    - midflat
+    - centerflat_q25
+    - centerflat_q50
+    - centerflat_q75
+    - highprob_centerflat
+    - low_spread
+    - mid_spread
+    - high_spread
+    - low_concentration
+    - mid_concentration
+    - high_concentration
+    - thin_tail
+    - mid_tail
+    - heavy_tail
+    - small_gap
+    - mid_gap
+    - large_gap
+    - rank_slope_flat
+    - rank_slope_mid
+    - rank_slope_steep
+    - spiky_top
+    - smooth_top
+    - multi_peak
+  n_values: [8]
+  proposal_temperature: 1.0
+  use_kv_cache_lookahead: false
+  candidate_eval_batch_size: 1
+  highprob_logprob_margin: 5.0
+  highprob_rank_limit: 100
+
+runtime:
+  inference_mode: false
+  resume:
+    skip_complete: true
+  cleanup:
+    device_cache_after_prompt: false
+    device_cache_after_group: true
+    python_gc_after_group: false
+
+output:
+  generations_dir: outputs/generations/comparison_gemma3_4b_shapes_20
+  token_log_dir: outputs/token_logs/comparison_gemma3_4b_shapes_20
+  summary_csv: results/summary/comparison_gemma3_4b_shapes_20_metrics.csv
+  table_csv: results/summary/comparison_gemma3_4b_shapes_20_table.csv
+  figures_dir: results/figures/comparison_gemma3_4b_shapes_20
