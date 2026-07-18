@@ -131,6 +131,7 @@ PYTHONPATH=src .venv/bin/python scripts/analyze_shape_output_summary.py
 PYTHONPATH=src .venv/bin/python scripts/analyze_prompt_framing_outputs.py
 PYTHONPATH=src .venv/bin/python scripts/classify_shape_output_modes.py
 PYTHONPATH=src .venv/bin/python scripts/analyze_shape_token_output_link.py
+PYTHONPATH=src .venv/bin/python scripts/classify_output_from_token_features.py
 MPLCONFIGDIR=/tmp/flatness-mpl .venv/bin/python scripts/plot_morphology_diagnostics.py
 MPLCONFIGDIR=/tmp/flatness-mpl .venv/bin/python scripts/plot_morphology_content_coverage.py
 ```
@@ -149,3 +150,4 @@ MPLCONFIGDIR=/tmp/flatness-mpl .venv/bin/python scripts/plot_morphology_content_
 - [raw/wrapped output comparison](../results/analysis/prompt_framing_output_analysis.md)
 - [shape output-mode classification](../results/analysis/morphology_shape_output_modes.md)
 - [token/output prompt-level link analysis](../results/analysis/morphology_shape_token_output_link.md)
+- [token-feature output classifier](../results/analysis/morphology_output_feature_classifier.md)
