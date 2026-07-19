@@ -6,6 +6,9 @@ This repository is a research archive for evaluating candidate-induced successor
 
 For the current public-analysis status and known limitations, see [`docs/public_release_audit.md`](docs/public_release_audit.md).
 
+The independent holdout baseline evaluation is documented in
+[`docs/holdout_baseline_evaluation.md`](docs/holdout_baseline_evaluation.md).
+
 ## Morphology analysis
 
 The consolidated analysis of 18 successor-logit shape labels across GPT-2, Gemma raw, and Qwen raw is documented in [`docs/morphology_analysis_report.md`](docs/morphology_analysis_report.md). It includes distribution statistics, candidate-token content analysis, model-local comparisons, bootstrap uncertainty, coverage diagnostics, and figures under `results/figures/morphology/`.

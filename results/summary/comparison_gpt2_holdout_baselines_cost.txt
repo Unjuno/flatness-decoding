@@ -1,0 +1,21 @@
+Experiment cost estimate
+experiment_name: comparison_gpt2_holdout_baselines
+model_name: gpt2
+model_scale: 2.6
+prompt_count: 20
+seed_count: 2
+max_new_tokens: 120
+baseline_methods: 6
+n_trial_methods: 0
+n_values: 
+baseline_relative_units: 43200
+n_trial_relative_units: 0
+total_relative_units: 43200
+model_scaled_relative_units: 112320.0
+
+Notes:
+- These are relative compute units, not guaranteed wall-clock time.
+- Sequence length growth, batching efficiency, memory bandwidth, and device choice can change runtime substantially.
+- cuda: fastest if memory fits; batched candidate evaluation helps
+- mps: usually usable but can be slower or memory-limited with multiple workers
+- cpu: safe but likely slow for full N-sweep experiments
