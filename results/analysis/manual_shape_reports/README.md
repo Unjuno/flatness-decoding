@@ -6,8 +6,14 @@ relabeling of the automated counters. Each report covers the three final
 shape). The labels describe the dominant output mode observed in the text.
 
 The review separates narrative continuation from assistant-like meta text,
-lists/templates, repetition, and token/format corruption. A shape is not
-treated as a quality label when the three models disagree.
+lists/templates, repetition, and token/format corruption. These are human
+qualitative interpretations of saved text, not ground-truth semantic labels.
+A shape is not treated as a quality label when the three models disagree.
+
+The row-count and file-by-file audit is recorded in
+[`manual_shape_reports_audit.md`](manual_shape_reports_audit.md). It checks the
+authoritative JSONL files and records where a statement is only a qualitative
+impression rather than a directly verifiable fact.
 
 - [heavy_tail](heavy_tail.md)
 - [high_concentration](high_concentration.md)
