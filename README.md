@@ -9,6 +9,9 @@ For the current public-analysis status and known limitations, see [`docs/public_
 The independent holdout baseline evaluation is documented in
 [`docs/holdout_baseline_evaluation.md`](docs/holdout_baseline_evaluation.md).
 
+The manual, shape-by-shape reading of the final 3-model × 18-shape outputs is
+in [`results/analysis/manual_shape_reports/`](results/analysis/manual_shape_reports/README.md).
+
 ## Morphology analysis
 
 The consolidated analysis of 18 successor-logit shape labels across GPT-2, Gemma raw, and Qwen raw is documented in [`docs/morphology_analysis_report.md`](docs/morphology_analysis_report.md). It includes distribution statistics, candidate-token content analysis, model-local comparisons, bootstrap uncertainty, coverage diagnostics, and figures under `results/figures/morphology/`.
