@@ -10,7 +10,7 @@ This report consolidates the morphology analysis for three models:
 
 The probe uses 20 WritingPrompts prompts, a top-100 current-token candidate pool, and step 0 successor-state measurements. The analysis is diagnostic: it does not claim that a morphology is a quality metric.
 
-A supplementary Qwen raw top-200 probe was also completed for the previously under-covered token-content regimes. It is kept separate from the main top-100 comparison because changing the candidate-pool size changes regime exposure.
+A supplementary Qwen raw top-200 probe was also completed for the previously under-covered token-content regimes. It produced 680 observed rows across 17 regimes, with 340 duplicate candidate rows from a resumed global selection; it is kept separate from the main top-100 comparison because changing the candidate-pool size changes regime exposure.
 
 ## What is being measured
 

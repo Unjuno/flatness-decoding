@@ -26,8 +26,8 @@
 
 ## 初見
 
-- `markup_heavy` の不足は、選択アルゴリズムだけでなく candidate pool 内で該当 prompt が少ないことが原因である。Qwen raw は11 promptしかカバーしないため、top-100 条件のまま20件にすることはできない。
-- 既存 probe は step 0 で `recent_text=prompt` を渡していたため、`prompt_overlap_heavy` と `recent_overlap_heavy` が完全一致していた。実装を修正し、今後の step 0 では recent text を空にする。既存 CSV の recent 指標は再計算が必要である。
+- `markup_heavy` の不足は、選択アルゴリズムだけでなく candidate pool 内で該当 prompt が少ないことが原因である。Qwen raw のtop-100 candidate poolは7 promptしかカバーしないため、top-100 条件のまま20 promptを独立に揃えることはできない（selected候補の件数11とは別の値）。
+- 旧step-0 probeでは `recent_text=prompt` を渡していたため、既存CSVの `prompt_overlap_heavy` と `recent_overlap_heavy` は独立な証拠として使えない。実装は修正済みだが、既存CSVは再計算が必要である。
 - selected sample の平均が極端に見える形状は、candidate pool 全体の平均と比較しないと、形状の性質と選択バイアスを混同する。
 
 ## 根拠

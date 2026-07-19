@@ -25,8 +25,8 @@ def main() -> None:
             with path.open(encoding="utf-8") as fh:
                 rows.extend(json.loads(x) for x in fh if x.strip())
         keyed = {(r.get("prompt_id"), r.get("method")): r for r in rows}
-        prompts = {k[0] for k in keyed if k[1] == "greedy"}
-        for shape in SHAPES:
+        prompts = sorted({k[0] for k in keyed if k[1] == "greedy"})
+        for shape in sorted(SHAPES):
             for prompt_id in prompts:
                 a = keyed.get((prompt_id, shape)); b = keyed.get((prompt_id, "greedy"))
                 if not a or not b: continue

@@ -2,7 +2,9 @@
 
 Experimental evaluation of **successor logit dispersion** as a decoding-time diagnostic/control signal for autoregressive language generation.
 
-This repository is a private research workspace for evaluating candidate-induced successor logit dispersion as a decoding-time signal. The goal is not to claim universal improvement, but to characterize how selecting tokens by successor-state distribution shape changes generation trajectories, repetition, diversity, likelihood-related metrics, failure modes, and compute cost.
+This repository is a research archive for evaluating candidate-induced successor logit dispersion as a decoding-time signal. The goal is not to claim universal improvement, but to characterize how selecting tokens by successor-state distribution shape changes generation trajectories, repetition, diversity, likelihood-related metrics, failure modes, and compute cost.
+
+For the current public-analysis status and known limitations, see [`docs/public_release_audit.md`](docs/public_release_audit.md).
 
 ## Morphology analysis
 
