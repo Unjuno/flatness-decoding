@@ -1,425 +1,85 @@
 # flatness-decoding
 
-Experimental evaluation of **successor logit dispersion** as a decoding-time diagnostic/control signal for autoregressive language generation.
+Experimental archive for studying **candidate-induced successor-logit
+dispersion** as a decoding-time diagnostic/control signal for autoregressive
+language generation.
 
-This repository is a research archive for evaluating candidate-induced successor logit dispersion as a decoding-time signal. The goal is not to claim universal improvement, but to characterize how selecting tokens by successor-state distribution shape changes generation trajectories, repetition, diversity, likelihood-related metrics, failure modes, and compute cost.
-
-For the current public-analysis status and known limitations, see [`docs/public_release_audit.md`](docs/public_release_audit.md).
-
-The independent holdout baseline evaluation is documented in
-[`docs/holdout_baseline_evaluation.md`](docs/holdout_baseline_evaluation.md).
-
-The manual, shape-by-shape reading of the final 3-model × 18-shape outputs is
-in [`results/analysis/manual_shape_reports/`](results/analysis/manual_shape_reports/README.md).
-
-## Morphology analysis
-
-The consolidated analysis of 18 successor-logit shape labels across GPT-2, Gemma raw, and Qwen raw is documented in [`docs/morphology_analysis_report.md`](docs/morphology_analysis_report.md). It includes distribution statistics, candidate-token content analysis, model-local comparisons, bootstrap uncertainty, coverage diagnostics, and figures under `results/figures/morphology/`.
-
-## WritingPrompts experiment status
-
-The DistilGPT-2 and GPT-2 WritingPrompts experiments are completed.
-
-- Fixed prompt artifact: [`prompts/writingprompts_fixed_100.jsonl`](prompts/writingprompts_fixed_100.jsonl)
-- Key summaries: [`results/summary/`](results/summary/)
-- Qualitative case review artifacts: [`results/analysis/`](results/analysis/)
-- Qualitative evidence map: [`results/analysis/writingprompts_qualitative_evidence_map.md`](results/analysis/writingprompts_qualitative_evidence_map.md)
-- Paper claim audit: [`results/analysis/paper_claim_audit.md`](results/analysis/paper_claim_audit.md)
-- Paper finish skill tree: [`docs/paper_finish_skill_tree.md`](docs/paper_finish_skill_tree.md)
-- Likelihood diagnostic: [`results/analysis/successor_dispersion_likelihood_diagnostics.md`](results/analysis/successor_dispersion_likelihood_diagnostics.md)
-- PPL note: [`paper/ppl_column_note.md`](paper/ppl_column_note.md)
-- Planned modern instruct-model sanity check: Gemma 3 4B-it staged smoke experiment
-  - Raw smoke outputs: completed for technical, paper, optional phases
-  - Wrapped continuation follow-up: wrapped10 and wrapped20 are completed; `N = 8` only and `N = 16` / `N = 32` are excluded
-- Current Gemma analysis: [`results/analysis/gemma_current_output_inventory.md`](results/analysis/gemma_current_output_inventory.md), [`results/analysis/gemma_current_qualitative_synthesis.md`](results/analysis/gemma_current_qualitative_synthesis.md)
-  - Heuristic mode labels only; not a formal evaluation
-  - Extension plan: [`docs/gemma_extension_plan.md`](docs/gemma_extension_plan.md)
-  - Postprocess plan: [`docs/gemma_postprocess_plan.md`](docs/gemma_postprocess_plan.md)
-  - Paper-facing Gemma limit is `N = 8`; `N = 16` / `N = 32` are not part of the planned pass
-- Planned modern-model probes:
-  - `google/gemma-2-2b` base-model probe
-  - `Qwen/Qwen2.5-1.5B-Instruct` instruct-model probe
-  - Small cross-model sanity checks only; `N = 8` only
-  - Plan: [`docs/modern_model_probe_plan.md`](docs/modern_model_probe_plan.md)
-  - Model cache location: `models/hf/`
-- Final report draft: [`paper/report_draft.md`](paper/report_draft.md)
-- Literature positioning note: [`paper/decoding_literature_positioning.md`](paper/decoding_literature_positioning.md)
-- Figure and table artifacts: [`paper/figures/`](paper/figures/)
-- Raw generations and token logs are archived externally rather than committed
-- Artifact packaging instructions: [`docs/artifact_archiving.md`](docs/artifact_archiving.md)
+The repository asks a narrow question: after temporarily appending a candidate
+token, how does the model's next-step logit distribution change, and what
+visible generation modes are associated with that state? It does not claim
+universal quality improvement, semantic understanding, or a causal effect from
+any one morphology label.
 
 ## Start here
 
-The current operational plan is fixed in:
+- [Public release audit](docs/public_release_audit.md)
+- [Morphology analysis report](docs/morphology_analysis_report.md)
+- [Independent holdout baseline evaluation](docs/holdout_baseline_evaluation.md)
+- [Manual 18-shape reading reports](results/analysis/manual_shape_reports/README.md)
+- [Reproducibility notes](docs/reproducibility_writingprompts.md)
+- [Artifact archiving policy](docs/artifact_archiving.md)
 
-```text
-ROADMAP.md
-```
+## Main result archive
 
-Use it as the main checklist for local setup, smoke tests, main experiments, evaluation, and manuscript filling.
+The final morphology archive contains 18 successor-logit shape labels across
+GPT-2, Gemma 3 4B-it raw, and Qwen 2.5 1.5B-Instruct raw. Each shape/model
+condition targets 20 prompts. The saved analysis covers distribution features,
+candidate-token content, model-local risk coordinates, paired effects,
+uncertainty, and qualitative output modes.
 
-Canonical thesis files:
+The 18 labels are descriptive projections of several axes—spread,
+concentration, tail mass, top-rank gap, rank-curve slope, and peak topology.
+They are not 18 independent semantic classes.
 
-```text
-paper/manuscript.md
-paper/thesis_blueprint_final.md
-paper/quality_evaluation_plan.md
-paper/flatness_validity_argument.md
-notes/evaluation_matrix.md
-notes/parallel_execution.md
-notes/remote_execution.md
-notes/output_cleaning.md
-```
+## Core method
 
-WritingPrompts results and interpretation:
-
-- [results/summary/writingprompts_experiment_summary.md](results/summary/writingprompts_experiment_summary.md)
-- [paper/writingprompts_results.md](paper/writingprompts_results.md)
-
-## Core idea
-
-At generation step `t`, given the current context `x_t`:
+At generation step `t`, given context `x_t`:
 
 1. Sample `N` candidate tokens from a proposal distribution.
-2. Temporarily append each candidate token.
+2. Temporarily append each candidate.
 3. Run the model one step ahead for each candidate.
-4. Compute successor logit dispersion, the standard deviation of the next-state logits.
-5. Select a candidate according to a selector over successor logit dispersion, such as low-dispersion (`minflat`), high-dispersion (`maxflat`), center-region (`centerflat_q50` / `centerflat_q75`), or likelihood-constrained center-region (`highprob_centerflat`).
+4. Measure successor-logit dispersion, normally `Std(logits)`.
+5. Select a candidate using a chosen selector such as `minflat`, `maxflat`, or
+   a center-region selector.
 
-Formally:
+The implementation is in `src/flatness_decoding/`; experiment definitions are
+in `configs/`; analysis entry points are in `scripts/`.
 
-```text
-y_1, ..., y_N ~ q(y | context)
-D(y_j) = Std(logits(. | context + y_j))
-y_t* = selector({(y_j, D(y_j))}_{j=1}^N)
-```
+## Reproduction
 
-If only probabilities are available, `Std(log p)` can be used because `log p_i = z_i - C`, so `Std(log p) = Std(z)`.
-
-## Main research questions
-
-1. Does Flatness-N reduce next-state logit standard deviation compared with Random-N under the same candidate budget?
-2. Does the flatness change align with quality-related metrics such as diversity, repetition, PPL/NLL, qualitative coherence, and runtime?
-3. How do internal and output metrics change as `N` increases?
-
-## Comparison set
-
-### Standard baselines
-
-- `greedy`
-- `beam`
-- `sampling`
-- `temperature`
-- `top_p`
-- `top_k`
-
-### N-trial methods
-
-- `random`: Random-N baseline
-- `minflat`: Flatness-N / MinFlat-N
-- `maxflat`: MaxFlat-N negative control
-
-`N` sweep is applied only to N-trial methods. Standard baselines do not have `N`.
-
-## Metrics policy
-
-Generation rows store both:
-
-```text
-text               # full decoded text, usually prompt + continuation
-continuation_text  # generated continuation only
-```
-
-Evaluation scripts use `continuation_text` when available. For legacy outputs without this field, they remove the `prompt` prefix from `text` when possible. This prevents prompt text from contaminating distinct/repetition/PPL-style metrics.
-
-## Local versus remote execution
-
-Use the local machine for structural checks only:
+Install the common and development dependencies, then run the small checks:
 
 ```bash
-make install
-make download-models
-make check
-make test
-make smoke
-make plan-parallel
-make clean-tiny
-make comparison-tiny-parallel
-make validate-tiny
+pip install -r requirements-common.txt -r requirements-dev.txt
+PYTHONPATH=src pytest -q
 ```
 
-Run long experiments on a separate remote machine or GPU PC:
+For a configured experiment, use:
 
 ```bash
-bash scripts/remote_run_make.sh comparison-distilgpt2-main-parallel
+PYTHONPATH=src python scripts/run_pipeline.py \
+  --config configs/comparison_gpt2_shapes_20.yaml
 ```
 
-or, for the full `gpt2` run:
-
-```bash
-bash scripts/remote_run_make.sh comparison-main-parallel
-```
-
-See:
-
-```text
-notes/remote_execution.md
-```
-
-## Hardware support and parallel execution
-
-The code is designed to run on:
-
-- CUDA GPU
-- Apple Silicon MPS
-- CPU fallback
-
-Use `--device auto` to select `cuda > mps > cpu` for model execution.
-
-For experiments, use the hardware-aware parallel planner:
-
-```bash
-make plan-parallel
-```
-
-Parallel targets use automatic worker/shard selection:
-
-```bash
-make comparison-tiny-parallel
-make comparison-smoke-parallel
-make comparison-distilgpt2-main-parallel
-make comparison-main-parallel
-```
-
-See:
-
-```text
-notes/parallel_execution.md
-```
-
-## Clean outputs before repeated runs
-
-Evaluation scripts aggregate all JSONL files in each output directory. Clean an experiment before rerunning the same `experiment_name`.
-
-```bash
-make clean-tiny
-make clean-smoke
-make clean-distilgpt2-main
-make clean-main
-```
-
-See:
-
-```text
-notes/output_cleaning.md
-```
-
-## Model cache policy
-
-Model weights are downloaded locally and are not committed to Git.
-
-Default cache:
-
-```text
-models/hf/
-```
-
-Download initial models:
-
-```bash
-make download-models
-```
-
-See:
-
-```text
-models/README.md
-```
-
-## Quick start
-
-```bash
-python -m venv .venv
-source .venv/bin/activate
-make install
-make download-models
-make check
-make test
-make smoke
-make plan-parallel
-```
-
-## Tiny debug comparison
-
-Before smoke or main experiments, run the tiny config:
-
-```bash
-make clean-tiny
-make comparison-tiny-parallel
-make validate-tiny
-```
-
-This uses only two toy prompts and a small method/N grid. It is intended to catch structural errors before longer runs.
-
-## First full smoke comparison
-
-Run:
-
-```bash
-make clean-smoke
-make comparison-smoke-parallel
-```
-
-Then optional extended checks:
-
-```bash
-make extended-smoke
-make ppl-smoke
-make trends-smoke
-make metric-suite-smoke
-make merge-smoke
-make manifest-smoke
-make export-smoke-table
-```
-
-Outputs:
-
-```text
-outputs/generations/comparison_smoke/
-outputs/token_logs/comparison_smoke/
-results/summary/comparison_smoke_metrics.csv
-results/summary/comparison_smoke_table.csv
-results/summary/comparison_smoke_analysis.md
-results/summary/comparison_smoke_token_trace.csv
-results/summary/comparison_smoke_merged_table.csv
-results/summary/comparison_smoke_manifest.json
-results/figures/comparison_smoke/
-results/figures/comparison_smoke/token_analysis/
-paper/tables/comparison_smoke_table.md
-```
-
-## Build a main prompt subset
-
-Before the main experiment, create a fixed prompt subset:
-
-```bash
-make build-prompts
-```
-
-This writes:
-
-```text
-prompts/main_prompts.jsonl
-```
-
-The prompt file is the experimental set. Every method must use the same rows in the same order.
-
-## Recommended experiment order
-
-Follow `ROADMAP.md`. The short version is:
-
-```bash
-make clean-tiny
-make comparison-tiny-parallel
-make validate-tiny
-make clean-smoke
-make comparison-smoke-parallel
-make build-prompts
-make clean-distilgpt2-main
-bash scripts/remote_run_make.sh comparison-distilgpt2-main-parallel
-# inspect outputs before running the full gpt2 experiment
-make clean-main
-bash scripts/remote_run_make.sh comparison-main-parallel
-```
-
-Do not run the full main experiment until tiny, smoke, and lightweight main outputs look sane.
-
-## Run a single generation
-
-```bash
-PYTHONPATH=src python scripts/run_generate.py \
-  --model distilgpt2 \
-  --prompt "Once upon a time" \
-  --method minflat \
-  --n-trials 4 \
-  --max-new-tokens 50 \
-  --device auto
-```
-
-## Data and artifact policy
-
-- Code, configs, prompt subsets, summary CSVs, and figures should be tracked by Git.
-- Raw datasets, full generations, token-level logs, model caches, and checkpoints should be tracked by DVC or kept outside Git.
-- Do not commit full logits or full probability vectors.
-
-## Paper workflow
-
-Working manuscript:
-
-```text
-paper/manuscript.md
-```
-
-Check unresolved markers:
-
-```bash
-make paper-check
-```
-
-Before final submission:
-
-```bash
-make paper-check-final
-```
-
-Unresolved or result-dependent statements are intentionally marked with:
-
-```text
-[TODO]
-[RESULT TBD]
-[VERIFY]
-[CITATION NEEDED]
-[FIGURE TBD]
-[TABLE TBD]
-[ALGORITHM TBD]
-```
-
-## Current status
-
-The repository contains:
-
-- Flatness-N, Random-N, and MaxFlat-N implementations
-- standard baselines including beam search
-- model cache/downloader support
-- hardware-aware parallel execution
-- remote execution workflow
-- clean targets for repeated experiments
-- continuation-only metric evaluation
-- output validation script
-- comparison experiment configs including a tiny debug config
-- prompt subset builder
-- evaluation, trend fitting, metric merging, manifest, and plotting scripts
-- paper manuscript and thesis planning files
-- roadmap and local verification gates
-
-The next local step is:
-
-```bash
-make install
-make download-models
-make check
-make test
-make smoke
-make plan-parallel
-make clean-tiny
-make comparison-tiny-parallel
-make validate-tiny
-```
-
-Then run longer experiments on a separate machine and inspect whether:
-
-```text
-mean_chosen_flatness(minflat) < mean_chosen_flatness(random) < mean_chosen_flatness(maxflat)
-```
-
-and how output metrics change as `N` increases.
+Large model caches, raw generation logs, and full token-level logs are not
+intended to be committed. Curated summaries, figures, prompts, configs, and
+analysis reports are tracked.
+
+## Scope and limitations
+
+- The morphology runs are primarily step-0/candidate-pool diagnostics, not a
+  universal estimate of shape frequency throughout generation.
+- Output-mode labels are qualitative surface diagnostics, not human semantic
+  judgments.
+- Model-local calibration matters; a shape name does not have a universal
+  quality meaning across models.
+- Reference-story metrics are supplementary because the reference is an
+  independent continuation, not the unique correct answer.
+- The archive is a reproducible research artifact, not a camera-ready paper or
+  benchmark leaderboard.
+
+## License and data
+
+See `data/README.md`, `prompts/README.md`, and `third_party/README.md` for data
+provenance and usage notes. The repository does not redistribute the original
+WritingPrompts dataset.

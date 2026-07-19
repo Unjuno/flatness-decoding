@@ -581,16 +581,10 @@ manifest-main:
 		--config configs/comparison_main_template.yaml \
 		--output results/summary/comparison_gpt2_writingprompts_manifest.json
 
-paper-check:
-	PYTHONPATH=$(PYTHONPATH) python scripts/check_paper_ready.py --manuscript paper/manuscript.md
-
-paper-check-final:
-	PYTHONPATH=$(PYTHONPATH) python scripts/check_paper_ready.py --manuscript paper/manuscript.md --fail
-
 export-smoke-table:
 	PYTHONPATH=$(PYTHONPATH) python scripts/export_table_markdown.py \
 		--input results/summary/comparison_smoke_table.csv \
-		--output paper/tables/comparison_smoke_table.md \
+		--output results/summary/comparison_smoke_table.md \
 		--sort-by method n_trials
 
 test:
