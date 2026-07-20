@@ -1,0 +1,8 @@
+config: configs/comparison_distilgpt2_shapes.yaml
+model: distilgpt2
+returncode: -1
+elapsed: 7200.0s
+attempt: 3
+
+error:
+TIMEOUT (2h)

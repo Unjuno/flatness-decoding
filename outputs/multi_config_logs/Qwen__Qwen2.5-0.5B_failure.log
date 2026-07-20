@@ -1,0 +1,8 @@
+config: configs/comparison_qwen25_05b_shapes.yaml
+model: Qwen/Qwen2.5-0.5B
+returncode: -1
+elapsed: 7200.0s
+attempt: 3
+
+error:
+TIMEOUT (2h)

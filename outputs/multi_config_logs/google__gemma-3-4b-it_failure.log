@@ -1,0 +1,8 @@
+config: configs/comparison_gemma3_4b_shapes.yaml
+model: google/gemma-3-4b-it
+returncode: -1
+elapsed: 7200.0s
+attempt: 3
+
+error:
+TIMEOUT (2h)
