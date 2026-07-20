@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-cd "/Users/taka/repos/flatness-decoding"
+cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 source .venv/bin/activate || true
 export PYTHONPATH=src

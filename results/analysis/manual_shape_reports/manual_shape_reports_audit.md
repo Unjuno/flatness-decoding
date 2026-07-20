@@ -2,10 +2,11 @@
 
 ## Scope
 
-This audit checks every one of the 18 report files against the saved final
-`shapes_20` JSONL outputs. It is an anti-hallucination audit of the analysis
-artifacts: file identity, model identity, row counts, and the strength of the
-written claims are checked separately.
+This audit checks every one of the 18 report files against the final private
+`shapes_20` JSONL outputs used to produce the public summaries. The raw JSONL is
+not committed to the public repository. It is an anti-hallucination audit of
+the analysis artifacts: file identity, model identity, row counts, and the
+strength of the written claims are checked separately.
 
 ## File-level checks
 

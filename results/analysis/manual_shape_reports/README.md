@@ -1,6 +1,7 @@
 # Manual shape-by-shape reading reports
 
-These reports are a qualitative reading of the saved continuation text, not a
+These reports are a qualitative reading of the private archived continuation
+text used for the analysis, not a
 relabeling of the automated counters. Each report covers the three final
 `shapes_20` model runs and 20 prompt IDs per model (60 continuations per
 shape). The labels describe the dominant output mode observed in the text.

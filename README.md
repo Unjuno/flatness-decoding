@@ -18,6 +18,7 @@ any one morphology label.
 - [Manual 18-shape reading reports](results/analysis/manual_shape_reports/README.md)
 - [Reproducibility notes](docs/reproducibility_writingprompts.md)
 - [Artifact archiving policy](docs/artifact_archiving.md)
+- [Public release checklist](docs/public_release_checklist.md)
 
 ## Main result archive
 
@@ -80,6 +81,7 @@ analysis reports are tracked.
 
 ## License and data
 
+The code and documentation are released under the [MIT License](LICENSE).
 See `data/README.md`, `prompts/README.md`, and `third_party/README.md` for data
 provenance and usage notes. The repository does not redistribute the original
 WritingPrompts dataset.

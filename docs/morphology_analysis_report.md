@@ -107,7 +107,10 @@ avoid markup/fragment states when narrative prose is desired
 
 ## 既存出力ログの個別突合（追加）
 
-`outputs/generations/*shapes_20/` と `outputs/token_logs/*shapes_20/` を、形状 method・model・prompt_id で突合する個別解析を追加した。各形状について、20 prompt × 3 model の continuation と各120 stepの token log を保存済みログから集計している。再生成は行っていない。
+Private run archives under `outputs/generations/*shapes_20/` and
+`outputs/token_logs/*shapes_20/` were joined by shape method, model, and
+prompt_id. Each shape used 20 prompts × 3 models and up to 120 logged steps.
+The raw run archives are intentionally excluded from the public repository.
 
 個別成果物は `results/analysis/shape_<shape>_output_analysis.md`、`shape_<shape>_output_rows.csv`、`shape_<shape>_token_rows.csv` として出力される。再現コマンドは次の通り。
 

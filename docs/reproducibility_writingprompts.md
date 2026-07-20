@@ -88,4 +88,7 @@ shasum -a 256 artifacts/*.tar.gz > artifacts/SHA256SUMS.txt
 
 ## Preservation caveat
 
-Raw generations and token logs are intentionally preserved externally rather than committed directly. The repository should carry the summary, note, and analysis artifacts needed for interpretation, while the large generation and token-log directories are archived separately.
+Raw generations and token logs are intentionally preserved externally rather
+than committed directly. The public repository carries summaries, notes, and
+analysis artifacts needed for interpretation, while large or dataset-derived
+generation/token-log directories remain access-controlled and separate.

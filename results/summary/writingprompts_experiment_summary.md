@@ -59,4 +59,4 @@ Use the WritingPrompts evidence to motivate a narrower follow-up on `centerflat_
 - `results/summary/writingprompts_key_results.csv`
 - `results/summary/comparison_distilgpt2_writingprompts_qualitative_audit.md`
 - `results/summary/comparison_gpt2_writingprompts_qualitative_audit.md`
-- `paper/writingprompts_results.md`
+- `docs/public_release_audit.md`

@@ -17,9 +17,7 @@ The synthesis draws on the following completed artifacts:
 - `results/summary/comparison_distilgpt2_writingprompts_merged_table.csv`
 - `results/summary/writingprompts_experiment_summary.md`
 - `results/summary/writingprompts_key_results.csv`
-- `paper/figures/writingprompts_gpt2_flatness_vs_n.csv`
-- `paper/figures/writingprompts_gpt2_tradeoff_table.csv`
-- `paper/figures/writingprompts_gpt2_case_review_summary.csv`
+- curated summary tables under `results/summary/`
 
 Raw generated continuations are not required for the conclusions below. When local examples are available, they align with the same qualitative patterns; when they are not, the summary tables and case-review artifacts are sufficient for this synthesis.
 

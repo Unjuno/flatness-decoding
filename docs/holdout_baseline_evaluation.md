@@ -46,10 +46,11 @@ is much more repetitive, while stochastic decoding is more diverse. This is a
 baseline sanity check, not evidence that any successor-logit shape causes the
 difference.
 
-Reference ROUGE scores are exported separately, but are supplementary only:
-the reference is a different author's continuation and the model output is
-capped at 120 tokens. They are not a substitute for semantic human or blind
-LLM evaluation.
+Reference-based scores were computed during the private analysis but are not
+included in the public archive because the source continuations are not
+redistributed here. They were supplementary only: the reference is a different
+author's continuation and the model output is capped at 120 tokens. They are
+not a substitute for semantic human or blind LLM evaluation.
 
 ## Cost and remaining gap
 
