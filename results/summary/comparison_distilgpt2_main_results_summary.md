@@ -4,7 +4,7 @@
 
 The completed main experiment evaluates next-state logit flatness as a decoding control signal using `distilgpt2`. The generation set contains 6,300 outputs: 1,800 outputs from standard baselines and 4,500 outputs from candidate-based methods. The baseline methods are `greedy`, `beam`, `sampling`, `temperature`, `top_k`, and `top_p`. The candidate-based methods are `random`, `minflat`, and `maxflat` with `N = 1, 4, 8, 16, 32`.
 
-The official implementation profile for this run is the safe full-prefix candidate evaluation path with candidate micro-batching. KV-cache lookahead is disabled. This is the conservative exact implementation used for the thesis results.
+The official implementation profile for this run is the safe full-prefix candidate evaluation path with candidate micro-batching. KV-cache lookahead is disabled. This is the conservative exact implementation used for the reported results.
 
 ## 2. RQ1: Does Flatness-N control next-state logit flatness?
 
@@ -99,7 +99,7 @@ For MinFlat-N:
 
 The marginal flatness improvement from `N=16` to `N=32` is small compared with the runtime increase. Therefore, `N=8` or `N=16` appears to be a more practical operating point, while `N=32` is useful as an upper-bound stress test.
 
-## 5. Main thesis-ready interpretation
+## 5. Main interpretation
 
 ### English
 
