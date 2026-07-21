@@ -20,4 +20,3 @@ This project may refer to external repositories for experiment design, evaluatio
 
 - Citing papers and reproducing experimental settings is allowed.
 - Copying source code requires license review.
-- Public release requires a second license review.

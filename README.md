@@ -12,13 +12,10 @@ any one morphology label.
 
 ## Start here
 
-- [Public release audit](docs/public_release_audit.md)
 - [Morphology analysis report](docs/morphology_analysis_report.md)
 - [Independent holdout baseline evaluation](docs/holdout_baseline_evaluation.md)
 - [Manual 18-shape reading reports](results/analysis/manual_shape_reports/README.md)
 - [Reproducibility notes](docs/reproducibility_writingprompts.md)
-- [Artifact archiving policy](docs/artifact_archiving.md)
-- [Public release checklist](docs/public_release_checklist.md)
 
 ## Main result archive
 
@@ -62,9 +59,9 @@ PYTHONPATH=src python scripts/run_pipeline.py \
   --config configs/comparison_gpt2_shapes_20.yaml
 ```
 
-Large model caches, raw generation logs, and full token-level logs are not
-intended to be committed. Curated summaries, figures, prompts, configs, and
-analysis reports are tracked.
+Large model caches are not committed. Raw generation logs and token-level logs
+from the reported experiments are included alongside the curated summaries,
+figures, prompts, configs, and analysis reports.
 
 ## Scope and limitations
 
